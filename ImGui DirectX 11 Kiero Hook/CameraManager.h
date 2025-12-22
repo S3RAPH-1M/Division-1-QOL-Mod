@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "Snowdrop.h"
+#include "KeybindHelper.h"
 
 using namespace DirectX;
 
@@ -100,3 +101,4 @@ public:
 	void operator=(CameraManager const&) = delete;
 
 };
+extern KeyBind ZoomKey;

@@ -7,6 +7,7 @@
 #include <iomanip>
 #include "imgui/imgui.h"
 #include "XorStr.hpp"
+#include "KeybindHelper.h"
 
 CameraManager::CameraManager()
 {
@@ -56,9 +57,10 @@ void CameraManager::CameraHook(__int64 pCamera)
     bool isAiming = false;
     if (UseFOVZoom)
     {
-        if ((GetAsyncKeyState(VK_RBUTTON) & 0x8000))
+        if (!ZoomKey.keys.empty()) 
         {
-            isAiming = true;
+            if (KeybindHelper::IsKeyBindPressed(ZoomKey))
+                isAiming = true;
         }
     }
 
@@ -73,12 +75,14 @@ void CameraManager::CameraHook(__int64 pCamera)
     pGameCamera->m_FieldOfView = XMConvertToRadians(static_cast<float>(CurrentFOV));
 }
 
+KeyBind ZoomKey;
 void CameraManager::DrawUI()
 {
     ImGui::Checkbox(xor ("FOV"), &UseFOV);
     if (UseFOV) {
         ImGui::SameLine(); ImGui::Checkbox(xor ("Zoom When Aiming"), &UseFOVZoom);
         if (UseFOVZoom) {
+            KeybindHelper::DrawKeyBindButton(xor ("Aim Button"), ZoomKey);
             ImGui::SliderInt(xor ("Zoom Speed"), &ZoomSpeed, 1, 10);
             ImGui::SliderInt(xor ("Zoom Field Of View"), &ZoomFovAmount, 1, 180);
         }

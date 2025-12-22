@@ -166,13 +166,14 @@
     <ClCompile Include="imgui\imgui_widgets.cpp" />
     <ClCompile Include="IniReader.cpp" />
     <ClCompile Include="IniWriter.cpp" />
+    <ClCompile Include="KeybindHelper.cpp" />
     <ClCompile Include="kiero\kiero.cpp" />
     <ClCompile Include="kiero\minhook\src\buffer.c" />
     <ClCompile Include="kiero\minhook\src\hde\hde32.c" />
     <ClCompile Include="kiero\minhook\src\hde\hde64.c" />
     <ClCompile Include="kiero\minhook\src\hook.c" />
     <ClCompile Include="kiero\minhook\src\trampoline.c" />
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="Main.cpp" />
     <ClCompile Include="Util.cpp" />
     <ClCompile Include="VisualManager.cpp" />
   </ItemGroup>
@@ -197,6 +198,7 @@
     <ClInclude Include="includes.h" />
     <ClInclude Include="IniReader.h" />
     <ClInclude Include="IniWriter.h" />
+    <ClInclude Include="KeybindHelper.h" />
     <ClInclude Include="kiero\kiero.h" />
     <ClInclude Include="kiero\minhook\include\MinHook.h" />
     <ClInclude Include="kiero\minhook\src\buffer.h" />

@@ -32,7 +32,6 @@ VisualManager::VisualManager()
     m_environmentCount = pEnvFiles->m_handleCount;
 }
 
-
 VisualManager::~VisualManager()
 {
 

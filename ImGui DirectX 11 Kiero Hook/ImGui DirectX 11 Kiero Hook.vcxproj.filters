@@ -19,6 +19,12 @@
     <Filter Include="imgui">
       <UniqueIdentifier>{3ba57e14-8ac2-485a-b12c-f06690c43d6e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Managers">
+      <UniqueIdentifier>{d32a3555-4829-4c82-8a1f-8a994b5814ad}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\ini">
+      <UniqueIdentifier>{fb192d96-1b8f-4a31-a654-73e195e1c45e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="kiero\minhook\src\buffer.c">
@@ -39,7 +45,7 @@
     <ClCompile Include="kiero\minhook\src\trampoline.c">
       <Filter>kiero</Filter>
     </ClCompile>
-    <ClCompile Include="main.cpp">
+    <ClCompile Include="Main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="imgui\imgui.cpp">
@@ -60,22 +66,25 @@
     <ClCompile Include="imgui\imgui_widgets.cpp">
       <Filter>imgui</Filter>
     </ClCompile>
-    <ClCompile Include="IniReader.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="IniWriter.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="CameraManager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Util.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Hooks.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="CameraManager.cpp">
+      <Filter>Source Files\Managers</Filter>
+    </ClCompile>
     <ClCompile Include="VisualManager.cpp">
+      <Filter>Source Files\Managers</Filter>
+    </ClCompile>
+    <ClCompile Include="IniReader.cpp">
+      <Filter>Source Files\ini</Filter>
+    </ClCompile>
+    <ClCompile Include="IniWriter.cpp">
+      <Filter>Source Files\ini</Filter>
+    </ClCompile>
+    <ClCompile Include="KeybindHelper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -176,6 +185,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="VisualManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="KeybindHelper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

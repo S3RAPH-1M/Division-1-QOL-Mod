@@ -10,31 +10,64 @@ namespace KeybindHelper
         for (int key = 1; key <= 254; key++)
             if (GetAsyncKeyState(key) & 0x8000)
                 return true;
+
+        const int mouseButtons[] = { VK_LBUTTON, VK_RBUTTON, VK_MBUTTON, VK_XBUTTON1, VK_XBUTTON2 };
+        for (int mouse : mouseButtons)
+            if (GetAsyncKeyState(mouse) & 0x8000)
+                return true;
+
         return false;
     }
 
     std::string KeyToString(int vk)
     {
-        char name[128] = {};
-        if (GetKeyNameTextA(MapVirtualKeyA(vk, MAPVK_VK_TO_VSC) << 16, name, 127))
-            return std::string(name);
-
         switch (vk)
         {
-        case VK_LCONTROL: return "L-Ctrl";
-        case VK_RCONTROL: return "R-Ctrl";
-        case VK_LSHIFT: return "L-Shift";
-        case VK_RSHIFT: return "R-Shift";
-        case VK_LMENU: return "L-Alt";
-        case VK_RMENU: return "R-Alt";
-        case VK_LWIN: return "L-Win";
-        case VK_RWIN: return "R-Win";
-        case VK_SPACE: return "Space";
-        case VK_RETURN: return "Enter";
-        case VK_ESCAPE: return "Escape";
-        default: return "Unknown";
+            case VK_LCONTROL: return "L-Ctrl";
+            case VK_RCONTROL: return "R-Ctrl";
+            case VK_LSHIFT: return "L-Shift";
+            case VK_RSHIFT: return "R-Shift";
+            case VK_LMENU: return "L-Alt";
+            case VK_RMENU: return "R-Alt";
+            case VK_LWIN: return "L-Win";
+            case VK_RWIN: return "R-Win";
+            case VK_SPACE: return "Space";
+            case VK_RETURN: return "Enter";
+            case VK_ESCAPE: return "Escape";
+            case VK_LBUTTON: return "Mouse L";
+            case VK_RBUTTON: return "Mouse R";
+            case VK_MBUTTON: return "Mouse M";
+            case VK_XBUTTON1: return "Mouse 4";
+            case VK_XBUTTON2: return "Mouse 5";
+            default:
+            {
+                char name[128] = {};
+                UINT scancode = MapVirtualKeyA(vk, MAPVK_VK_TO_VSC);
+
+                switch (vk)
+                {
+                case VK_PRIOR:
+                case VK_NEXT:
+                case VK_END:
+                case VK_HOME:
+                case VK_INSERT:
+                case VK_DELETE:
+                case VK_RCONTROL:
+                case VK_RMENU:
+                case VK_NUMLOCK:
+                case VK_DIVIDE:
+                    scancode |= 0x100;
+                    break;
+                }
+
+                if (GetKeyNameTextA(scancode << 16, name, 127))
+                    return std::string(name);
+
+                return "Unknown";
+            }
         }
     }
+
 
     bool IsKeyBindPressed(const KeyBind& bind)
     {
@@ -70,8 +103,6 @@ namespace KeybindHelper
 
         if (bind.waitingForInput)
         {
-            bool hasCtrl = false, hasShift = false, hasAlt = false;
-
             for (int key = 1; key <= 254; key++)
             {
                 if (GetAsyncKeyState(key) & 0x8000)
@@ -83,27 +114,22 @@ namespace KeybindHelper
                         break;
                     }
 
-                    if (key == VK_LCONTROL || key == VK_RCONTROL)
-                    {
-                        if (hasCtrl) continue;
-                        key = VK_CONTROL;
-                        hasCtrl = true;
-                    }
-                    else if (key == VK_LSHIFT || key == VK_RSHIFT)
-                    {
-                        if (hasShift) continue;
-                        key = VK_SHIFT;
-                        hasShift = true;
-                    }
-                    else if (key == VK_LMENU || key == VK_RMENU) // ALT
-                    {
-                        if (hasAlt) continue;
-                        key = VK_MENU;
-                        hasAlt = true;
-                    }
+                    // Skip Generics
+                    if (key == VK_CONTROL || key == VK_SHIFT || key == VK_MENU)
+                        continue;
 
                     if (std::find(bind.keys.begin(), bind.keys.end(), key) == bind.keys.end())
                         bind.keys.push_back(key);
+                }
+            }
+
+            const int mouseButtons[] = { VK_LBUTTON, VK_RBUTTON, VK_MBUTTON, VK_XBUTTON1, VK_XBUTTON2 };
+            for (int mouse : mouseButtons)
+            {
+                if (GetAsyncKeyState(mouse) & 0x8000)
+                {
+                    if (std::find(bind.keys.begin(), bind.keys.end(), mouse) == bind.keys.end())
+                        bind.keys.push_back(mouse);
                 }
             }
 

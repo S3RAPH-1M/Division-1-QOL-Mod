@@ -56,9 +56,11 @@ static bool menu_key_pressed = false;
 
 char* str_settings = (char*)"Settings";
 
-static bool useFOV;
-static bool useFOVZoom;
-int fovAmount = 70;
+bool UseFOV;
+int FovAmount = 70;
+bool UseFOVZoom;
+int ZoomSpeed = 3;
+int ZoomFovAmount = 55;
 constexpr int GUI_COLUMN_OFFSET = 200;
 
 
@@ -116,14 +118,7 @@ void Update(void) {
 	if (game_is_initialized == false) return;
 	if (GetForegroundWindow() != FindWindowA(NULL, "Tom Clancy's The Division")) return;
 
-
-	if (useFOVZoom)
-	{
-		if (GetAsyncKeyState(VK_RBUTTON) < 0 && !menu_key_pressed)
-		{
-			fovAmount = 55;
-		}
-	}
+	// Use this for anything u need to run on next frame / Update.
 }
 
 
@@ -210,12 +205,7 @@ HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 			if (game_is_initialized) {
 				switch (tab) {
 				case 1:
-					ImGui::Checkbox(xor ("FOV"), &useFOV);
-					if (useFOV) {
-						ImGui::SameLine(); ImGui::Checkbox(xor ("Zoom When Aiming"), &useFOVZoom);
-						
-						ImGui::SliderInt(xor ("value"), &fovAmount, 20, 180);
-					}
+					g_mainHandle->GetCameraManager()->DrawUI();
 				break;
 
 				case 2:
@@ -266,12 +256,12 @@ void Main::Initialize()
 	// Get the base pointer for the module.
 
 	try {
-		useFOV = iniReader.ReadBoolean(str_settings, (char*)"usefov", false);
-		useFOVZoom = iniReader.ReadBoolean(str_settings, (char*)"usefovzoom", false);
+		UseFOV = iniReader.ReadBoolean(str_settings, (char*)"usefov", false);
+		UseFOVZoom = iniReader.ReadBoolean(str_settings, (char*)"usefovzoom", false);
 	}
 	catch (...) {
-		useFOV = false;
-		useFOV = false;
+		UseFOV = false;
+		UseFOV = false;
 	}
 
 	util::hooks::Init();

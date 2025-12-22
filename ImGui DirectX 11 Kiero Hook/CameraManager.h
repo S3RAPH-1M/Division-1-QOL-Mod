@@ -73,6 +73,7 @@ public:
 
 	void CameraHook(__int64 pCamera);
 	void Update(double);
+	void DrawUI();
 public:
 	bool m_cameraEnabled;
 	bool m_firstEnable;

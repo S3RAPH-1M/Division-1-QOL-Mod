@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <iostream>
 #include <iomanip>
+#include "imgui/imgui.h"
+#include "XorStr.hpp"
 
 CameraManager::CameraManager()
 {
@@ -35,9 +37,53 @@ CameraManager::~CameraManager()
 {
 }
 
+float quicklerp(float a, float b, float t)
+{
+    return a + (b - a) * t;
+}
+
+float CurrentFOV = 0.0f;
 void CameraManager::CameraHook(__int64 pCamera)
 {
+    // Get Object Reference To the Game Camera
     TD::GameCamera* pGameCamera = (TD::GameCamera*)pCamera;
-    pGameCamera->m_FieldOfView = XMConvertToRadians(static_cast<float>(fovAmount));
+
+    if (CurrentFOV == 0.0f)
+    {
+        CurrentFOV = static_cast<float>(FovAmount);
+    }
+
+    bool isAiming = false;
+    if (UseFOVZoom)
+    {
+        if ((GetAsyncKeyState(VK_RBUTTON) & 0x8000))
+        {
+            isAiming = true;
+        }
+    }
+
+    float targetFOV = isAiming ? ZoomFovAmount : static_cast<float>(FovAmount);
+    float deltaTime = 1.0f / 60.0f;
+    float speed = static_cast<float>(ZoomSpeed) / 3;
+    
+    
+    // FOV Smoothing
+    CurrentFOV += (targetFOV - CurrentFOV) * (1.0f - expf(-speed * deltaTime));
+
+    pGameCamera->m_FieldOfView = XMConvertToRadians(static_cast<float>(CurrentFOV));
+}
+
+void CameraManager::DrawUI()
+{
+    ImGui::Checkbox(xor ("FOV"), &UseFOV);
+    if (UseFOV) {
+        ImGui::SameLine(); ImGui::Checkbox(xor ("Zoom When Aiming"), &UseFOVZoom);
+        if (UseFOVZoom) {
+            ImGui::SliderInt(xor ("Zoom Speed"), &ZoomSpeed, 1, 10);
+            ImGui::SliderInt(xor ("Zoom Field Of View"), &ZoomFovAmount, 1, 180);
+        }
+
+        ImGui::SliderInt(xor ("Field Of View"), &FovAmount, 55, 180);
+    }
 }
 

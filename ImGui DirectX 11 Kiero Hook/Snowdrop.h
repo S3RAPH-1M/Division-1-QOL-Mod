@@ -274,11 +274,11 @@ namespace TD
     static void ShowMouse(bool arg)
     {
         typedef __int64* (__fastcall* tGetValue)(__int64, __int64*, const char*, int);
-        tGetValue GetValue = (tGetValue)(g_pBase + 0xC8DC8F); // B9 ? ? ? ? 48 89 5C 24 ? E8 ? ? ? ? 48 8B D8 48 85 C0 74 ? 48 8B CF
+        tGetValue GetValue = (tGetValue)(g_pBase + 0x646DF0); // B9 ? ? ? ? 48 89 5C 24 ? E8 ? ? ? ? 48 8B D8 48 85 C0 74 ? 48 8B CF
         TD::Client* pClient = TD::RogueClient::Singleton()->m_pClient;
         __int64 pValueStoreThingy = *(__int64*)((__int64)pClient + 0x38);
-        __int64 donutcare = 0;
-        __int64 pValueStore = *GetValue(pValueStoreThingy, &donutcare, "KB_SHOW_MOUSE", 0);
+        __int64 donotcare = 0;
+        __int64 pValueStore = *GetValue(pValueStoreThingy, &donotcare, "KB_SHOW_MOUSE", 0);
 
         if (pValueStore)
         {

@@ -36,6 +36,18 @@ int __fastcall hCameraUpdate2(__int64 pCamera, __int64 pTransform)
     return result;
 }
 
+void __fastcall hRClientUpdate(__int64 a1)
+{
+    TD::RogueClient* pRClient = TD::RogueClient::Singleton();
+
+    if (menu_key_pressed)
+    {
+        TD::ShowMouse(true);
+    }
+
+    oRClientUpdate(a1);
+}
+
 
 namespace
 {
@@ -86,6 +98,7 @@ void hooks::Init()
 
     HookVTableFunction(pGameCamera, 4, hCameraUpdate, oCameraUpdate);
     HookVTableFunction(pGameCamera2, 4, hCameraUpdate2, oCameraUpdate2);
+    HookVTableFunction(TD::RogueClient::Singleton(), 5, hRClientUpdate, oRClientUpdate);
 }
 
 void hooks::DisableHooks()

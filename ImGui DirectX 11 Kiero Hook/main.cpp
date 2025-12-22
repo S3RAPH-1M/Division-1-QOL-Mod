@@ -52,7 +52,7 @@ static bool game_is_initialized = false;
 
 static int MENU_KEY;
 static bool show_menu = true;
-static bool menu_key_pressed = false;
+bool menu_key_pressed = false;
 
 char* str_settings = (char*)"Settings";
 
@@ -128,7 +128,6 @@ void Update(void) {
 // - Calls the original Present function at the end to display frames.
 HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT Flags)
 {
-
 	if (!init)
 	{
 
@@ -160,9 +159,11 @@ HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 	if (GetAsyncKeyState(VK_HOME) < 0 && !menu_key_pressed) {
 		show_menu = !show_menu;
 		menu_key_pressed = true;
+
 	}
 	if (GetAsyncKeyState(VK_HOME) == 0 && menu_key_pressed) {
 		menu_key_pressed = false;
+		TD::ShowMouse(false);
 	}
 
 
@@ -224,6 +225,7 @@ HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 			}
 		}
 
+		TD::ShowMouse(true);
 		ImGui::End();
 	}
 

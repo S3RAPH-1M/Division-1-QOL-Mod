@@ -157,6 +157,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CameraManager.cpp" />
+    <ClCompile Include="configGlobals.cpp" />
+    <ClCompile Include="ConfigManager.cpp" />
     <ClCompile Include="Hooks.cpp" />
     <ClCompile Include="imgui\imgui.cpp" />
     <ClCompile Include="imgui\imgui_demo.cpp" />
@@ -186,6 +188,8 @@
   <ItemGroup>
     <ClInclude Include="attributes.h" />
     <ClInclude Include="CameraManager.h" />
+    <ClInclude Include="configGlobals.h" />
+    <ClInclude Include="ConfigManager.h" />
     <ClInclude Include="global.h" />
     <ClInclude Include="imgui\imconfig.h" />
     <ClInclude Include="imgui\imgui.h" />

@@ -87,6 +87,12 @@
     <ClCompile Include="KeybindHelper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ConfigManager.cpp">
+      <Filter>Source Files\Managers</Filter>
+    </ClCompile>
+    <ClCompile Include="configGlobals.cpp">
+      <Filter>Source Files\ini</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="kiero\minhook\dll_resources\MinHook.rc">
@@ -188,6 +194,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="KeybindHelper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ConfigManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="configGlobals.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

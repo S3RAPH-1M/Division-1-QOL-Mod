@@ -20,6 +20,7 @@
 #include "Snowdrop.h"
 #include "Main.h"
 #include "VisualManager.h"
+#include "ConfigManager.h"
 #pragma comment(lib, "psapi.lib")
 
 
@@ -38,10 +39,6 @@ ID3D11Device* pDevice = NULL;
 ID3D11DeviceContext* pContext = NULL;
 ID3D11RenderTargetView* mainRenderTargetView;
 
-CIniWriter iniWriter((char*)CONFIG_PATH);
-CIniReader iniReader((char*)CONFIG_PATH);
-
-
 static float res_x, res_y;
 
 uintptr_t g_pBase;
@@ -54,13 +51,13 @@ static int MENU_KEY;
 static bool show_menu = true;
 bool menu_key_pressed = false;
 
-char* str_settings = (char*)"Settings";
+
 
 bool UseFOV;
-int FovAmount = 70;
+int FovAmount;
 bool UseFOVZoom;
-int ZoomSpeed = 3;
-int ZoomFovAmount = 55;
+int ZoomSpeed;
+int ZoomFovAmount;
 constexpr int GUI_COLUMN_OFFSET = 200;
 
 
@@ -195,6 +192,10 @@ HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 		{
 			tab = 2;
 		}
+		if (ImGui::Button(xor ("Settings"), ImVec2(GUI_COLUMN_OFFSET - 10, 20)))
+		{
+			tab = 999;
+		}
 
 
 
@@ -208,11 +209,12 @@ HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 				case 1:
 					g_mainHandle->GetCameraManager()->DrawUI();
 				break;
-
 				case 2:
 					g_mainHandle->GetVisualManager()->DrawUI();
 				break;
-
+				case 999:
+					g_mainHandle->GetConfigManager()->DrawUI();
+				break;
 				default:
 					ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 204, 51, 255));
 					char* text = (char*)"Click the buttons on the left for the menus. Happy Playing! :)";
@@ -221,7 +223,6 @@ HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 					ImGui::PopStyleColor();
 					break;
 				}
-
 			}
 		}
 
@@ -257,15 +258,10 @@ void Main::Initialize()
 	g_pBase = (uintptr_t)GetModuleHandle(0);
 	// Get the base pointer for the module.
 
-	try {
-		UseFOV = iniReader.ReadBoolean(str_settings, (char*)"usefov", false);
-		UseFOVZoom = iniReader.ReadBoolean(str_settings, (char*)"usefovzoom", false);
-	}
-	catch (...) {
-		UseFOV = false;
-		UseFOV = false;
-	}
+	// Load Config
+	LoadSettings();
 
+	//Load Hooks
 	util::hooks::Init();
 
 	res_x = ImGui::GetIO().DisplaySize.x;

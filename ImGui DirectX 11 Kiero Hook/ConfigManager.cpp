@@ -26,6 +26,7 @@ void LoadSettings()
 		FovAmount = iniReader.ReadInteger(str_settings, (char*)"fovAmount", 70);
 		ZoomSpeed = iniReader.ReadInteger(str_settings, (char*)"ZoomSpeed", 3);
 		ZoomFovAmount = iniReader.ReadInteger(str_settings, (char*)"ZoomFovAmount", 55);
+		KeybindHelper::LoadKeyBind(str_settings, ZoomKey, iniReader);
 	}
 	catch (...) {
 		UseFOV = false;
@@ -44,6 +45,7 @@ void SaveSettings()
 		iniWriter.WriteInteger(str_settings, (char*)"fovAmount", FovAmount);
 		iniWriter.WriteInteger(str_settings, (char*)"zoomSpeed", ZoomSpeed);
 		iniWriter.WriteInteger(str_settings, (char*)"zoomFovAmount", ZoomFovAmount);
+		KeybindHelper::SaveKeyBind(str_settings, ZoomKey, iniWriter);
 	}
 	catch (...) {
 		ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 0, 0, 255));

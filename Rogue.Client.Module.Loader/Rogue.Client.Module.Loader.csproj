@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>Rogue.Client.Module.Loader</RootNamespace>
+    <ApplicationIcon>Rogue.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="Rogue.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Reloaded.Injector" Version="1.2.5" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="C:\Users\Administrator\.nuget\packages\reloaded.assembler\1.0.14\build\FASM-LICENSE.TXT" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="C:\Users\Administrator\.nuget\packages\reloaded.assembler\1.0.14\build\FASM-LICENSE.TXT" />
+  </ItemGroup>
+</Project>

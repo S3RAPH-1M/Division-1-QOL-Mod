@@ -50,6 +50,7 @@ static bool game_is_initialized = false;
 static int MENU_KEY;
 static bool show_menu = true;
 bool menu_key_pressed = false;
+constexpr int GUI_COLUMN_OFFSET = 200;
 
 
 
@@ -58,7 +59,7 @@ int FovAmount;
 bool UseFOVZoom;
 int ZoomSpeed;
 int ZoomFovAmount;
-constexpr int GUI_COLUMN_OFFSET = 200;
+bool useFirstPerson;
 
 
 // read_memory: Reads a value of type T from the specified memory address.
@@ -114,8 +115,9 @@ void Update(void) {
 
 	if (game_is_initialized == false) return;
 	if (GetForegroundWindow() != FindWindowA(NULL, "Tom Clancy's The Division")) return;
-
+	
 	// Use this for anything u need to run on next frame / Update.
+	g_mainHandle->GetCameraManager()->Update();
 }
 
 

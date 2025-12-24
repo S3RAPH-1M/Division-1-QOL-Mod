@@ -153,7 +153,7 @@ void CameraManager::DrawUI()
         }
 
         ImGui::SliderInt(xor ("Field Of View"), &FovAmount, 55, 180);
-        ImGui::Combo("##PlayerList", &m_selectedPlayerIndex, m_playerList, m_playerCount);
+        //ImGui::Combo("##PlayerList", &m_selectedPlayerIndex, m_playerList, m_playerCount); // for debugging. do not uncomment unless u are filthy cheater!
     }
 
     ImGui::Checkbox(xor ("Use First Person View"), &useFirstPerson);

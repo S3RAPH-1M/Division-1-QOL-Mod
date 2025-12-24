@@ -1,0 +1,8 @@
+[package]
+name = "the-division-qol"
+version = "0.1.0"
+edition = "2025"
+
+[dependencies]
+libmem = { version = "*" }
+figlet-rs = { version = "*" }

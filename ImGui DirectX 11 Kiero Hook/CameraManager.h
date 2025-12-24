@@ -73,8 +73,9 @@ public:
 	~CameraManager();
 
 	void CameraHook(__int64 pCamera);
-	void Update(double);
+	void Update();
 	void DrawUI();
+	void UpdatePlayerList();
 public:
 	bool m_cameraEnabled;
 	bool m_firstEnable;
@@ -102,3 +103,6 @@ public:
 
 };
 extern KeyBind ZoomKey;
+extern float boneOffsetX; // Right
+extern float boneOffsetY; // Up
+extern float boneOffsetZ; // Forward

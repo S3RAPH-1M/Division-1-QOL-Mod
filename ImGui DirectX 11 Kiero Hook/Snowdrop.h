@@ -3,7 +3,9 @@
 #include <DirectXMath.h>
 #include <dxgi.h>
 #include <Windows.h>
-
+#include <stdio.h>
+#include <iostream>
+#include <iomanip>
 #include "Util.h"
 
 using namespace DirectX;
@@ -36,6 +38,30 @@ namespace TD
         {
             int type = *(int*)((__int64)this + 0x3A4);
             return (type == 1 || type == 7);
+        }
+
+        XMMATRIX GetHeadBoneMatrix()
+        {
+            __int64 bone_root = *(__int64*)((__int64)this + 0x1D0);
+            if (!bone_root)
+            {
+                std::cout << "bone_root not found!\n";
+                return XMMatrixIdentity();
+            }
+
+            // generic bone array start
+            __int64 boneArray = *(__int64*)(bone_root + 0x1460);
+            if (!boneArray)
+            {
+                std::cout << "Bone array not found!\n";
+                return XMMatrixIdentity();
+            }
+
+            constexpr UINT HEAD_BONE_INDEX = 5;
+
+            __int64 headBoneMatrixAddr = boneArray + (HEAD_BONE_INDEX * 0x40);
+
+            return *reinterpret_cast<XMMATRIX*>(headBoneMatrixAddr);
         }
 
         bool IsInDarkZone()

@@ -28,6 +28,9 @@ public:
 	void operator=(Main const&) = delete;
 };
 
+template<typename T> T read_memory(uintptr_t address);
+template<typename T> void write_memory(uintptr_t address, T value);
+
 extern Main* g_mainHandle;
 extern HINSTANCE g_dllHandle;
 extern bool g_gameUIDisabled;
@@ -38,3 +41,4 @@ extern bool UseFOV;
 extern bool UseFOVZoom;
 extern int ZoomFovAmount;
 extern int ZoomSpeed;
+extern bool useFirstPerson;

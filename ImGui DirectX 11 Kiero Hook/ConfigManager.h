@@ -10,7 +10,6 @@ public:
     ~ConfigManager();
 
     void DrawUI();
-
 public:
     ConfigManager(ConfigManager const&) = delete;
     void operator=(ConfigManager const&) = delete;

@@ -8,6 +8,7 @@
 #include "Main.h"
 #include "attributes.h"
 #include "configGlobals.h"
+#include "KeybindHelper.h"
 
 ConfigManager::ConfigManager()
 {
@@ -26,7 +27,8 @@ void LoadSettings()
 		FovAmount = iniReader.ReadInteger(str_settings, (char*)"fovAmount", 70);
 		ZoomSpeed = iniReader.ReadInteger(str_settings, (char*)"ZoomSpeed", 3);
 		ZoomFovAmount = iniReader.ReadInteger(str_settings, (char*)"ZoomFovAmount", 55);
-		KeybindHelper::LoadKeyBind(str_settings, ZoomKey, iniReader);
+		KeybindHelper::LoadKeyBind(str_settings, "zoomKey", ZoomKey, iniReader);
+		KeybindHelper::LoadKeyBind(str_settings, "menuKey", menuKey, iniReader);
 	}
 	catch (...) {
 		UseFOV = false;
@@ -45,7 +47,8 @@ void SaveSettings()
 		iniWriter.WriteInteger(str_settings, (char*)"fovAmount", FovAmount);
 		iniWriter.WriteInteger(str_settings, (char*)"zoomSpeed", ZoomSpeed);
 		iniWriter.WriteInteger(str_settings, (char*)"zoomFovAmount", ZoomFovAmount);
-		KeybindHelper::SaveKeyBind(str_settings, ZoomKey, iniWriter);
+		KeybindHelper::SaveKeyBind(str_settings, "zoomKey", ZoomKey, iniWriter);
+		KeybindHelper::SaveKeyBind(str_settings, "menuKey", menuKey, iniWriter);
 	}
 	catch (...) {
 		ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 0, 0, 255));
@@ -55,6 +58,7 @@ void SaveSettings()
 	}
 }
 
+KeyBind menuKey;
 void ConfigManager::DrawUI()
 {
 	ImGui::Text(xor ("Settings"));
@@ -63,4 +67,6 @@ void ConfigManager::DrawUI()
 	{
 		SaveSettings();
 	}
+
+	KeybindHelper::DrawKeyBindButton(xor ("Menu Button"), menuKey);
 }

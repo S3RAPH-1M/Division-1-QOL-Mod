@@ -21,6 +21,7 @@
 #include "Main.h"
 #include "VisualManager.h"
 #include "ConfigManager.h"
+#include "KeybindHelper.h"
 #pragma comment(lib, "psapi.lib")
 
 
@@ -155,15 +156,17 @@ HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 	}
 
 
-	if (GetAsyncKeyState(VK_HOME) < 0 && !menu_key_pressed) {
-		show_menu = !show_menu;
-		menu_key_pressed = true;
+	static bool lastKeyState = false;
 
+	bool currentKeyState = KeybindHelper::IsKeyBindPressed(menuKey);
+
+	if (currentKeyState && !lastKeyState) {
+		show_menu = !show_menu;
+		TD::ShowMouse(show_menu);
 	}
-	if (GetAsyncKeyState(VK_HOME) == 0 && menu_key_pressed) {
-		menu_key_pressed = false;
-		TD::ShowMouse(false);
-	}
+
+	lastKeyState = currentKeyState;
+
 
 
 	ImGui_ImplDX11_NewFrame();

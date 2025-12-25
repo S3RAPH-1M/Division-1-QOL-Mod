@@ -71,7 +71,7 @@ namespace KeybindHelper
         }
     }
 
-    void SaveKeyBind(const char* section, const KeyBind& bind, CIniWriter& writer)
+    void SaveKeyBind(const char* section, const char* keyName, const KeyBind& bind, CIniWriter& writer)
     {
         std::ostringstream ss;
         for (size_t i = 0; i < bind.keys.size(); i++)
@@ -80,16 +80,17 @@ namespace KeybindHelper
             if (i + 1 < bind.keys.size())
                 ss << ",";
         }
+
         std::string keyString = ss.str();
-        writer.WriteString((char*)section, (char*)"Keys", (char*)keyString.c_str());
+        writer.WriteString((char*)section, (char*)keyName, (char*)keyString.c_str());
     }
 
-    void LoadKeyBind(const char* section, KeyBind& bind, CIniReader& reader)
+    void LoadKeyBind(const char* section, const char* keyName, KeyBind& bind, CIniReader& reader)
     {
-        char* keyString = reader.ReadString((char*)section, (char*)"Keys", "");
+        char* keyString = reader.ReadString((char*)section, (char*)keyName, "");
         bind.keys.clear();
 
-        if (strlen(keyString) > 0)
+        if (keyString && strlen(keyString) > 0)
         {
             std::stringstream ss(keyString);
             std::string token;

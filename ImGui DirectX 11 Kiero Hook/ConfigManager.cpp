@@ -9,6 +9,7 @@
 #include "attributes.h"
 #include "configGlobals.h"
 #include "KeybindHelper.h"
+#include "CameraManager.h"
 
 ConfigManager::ConfigManager()
 {
@@ -27,6 +28,7 @@ void LoadSettings()
 		FovAmount = iniReader.ReadInteger(str_settings, (char*)"fovAmount", 70);
 		ZoomSpeed = iniReader.ReadInteger(str_settings, (char*)"ZoomSpeed", 3);
 		ZoomFovAmount = iniReader.ReadInteger(str_settings, (char*)"ZoomFovAmount", 55);
+		g_gameUIDisabled = iniReader.ReadInteger(str_settings, (char*)"hideHUD", g_gameUIDisabled);
 		KeybindHelper::LoadKeyBind(str_settings, "zoomKey", ZoomKey, iniReader);
 		KeybindHelper::LoadKeyBind(str_settings, "menuKey", menuKey, iniReader);
 	}
@@ -47,6 +49,7 @@ void SaveSettings()
 		iniWriter.WriteInteger(str_settings, (char*)"fovAmount", FovAmount);
 		iniWriter.WriteInteger(str_settings, (char*)"zoomSpeed", ZoomSpeed);
 		iniWriter.WriteInteger(str_settings, (char*)"zoomFovAmount", ZoomFovAmount);
+		iniWriter.WriteInteger(str_settings, (char*)"hideHUD", g_gameUIDisabled);
 		KeybindHelper::SaveKeyBind(str_settings, "zoomKey", ZoomKey, iniWriter);
 		KeybindHelper::SaveKeyBind(str_settings, "menuKey", menuKey, iniWriter);
 	}

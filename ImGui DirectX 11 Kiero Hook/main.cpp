@@ -286,10 +286,10 @@ void Main::Initialize()
 // Returns TRUE when the hook is successfully set.
 DWORD WINAPI MainThread(LPVOID lpReserved)
 {
-	AllocConsole();
-	FILE* f;
-	freopen_s(&f, "CONOUT$", "w", stdout);
-	std::cout << "Debug information starts:\n";
+	//AllocConsole();
+	//FILE* f;
+	//freopen_s(&f, "CONOUT$", "w", stdout);
+	//std::cout << "Debug information starts:\n";
 
 	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 

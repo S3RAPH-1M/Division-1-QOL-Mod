@@ -102,7 +102,8 @@ public:
 	void operator=(CameraManager const&) = delete;
 
 };
-extern KeyBind ZoomKey;
+extern KeyBind ZoomKey; 
+extern bool g_gameUIDisabled;
 extern float boneOffsetX; // Right
 extern float boneOffsetY; // Up
 extern float boneOffsetZ; // Forward

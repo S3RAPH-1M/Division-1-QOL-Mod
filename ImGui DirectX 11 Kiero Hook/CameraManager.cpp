@@ -141,6 +141,7 @@ void CameraManager::Update()
 
 
 KeyBind ZoomKey;
+bool g_gameUIDisabled;
 void CameraManager::DrawUI()
 {
     ImGui::Checkbox(xor ("FOV"), &UseFOV);
@@ -153,6 +154,9 @@ void CameraManager::DrawUI()
         }
 
         ImGui::SliderInt(xor ("Field Of View"), &FovAmount, 55, 180);
+
+
+        //ImGui::Checkbox(xor ("Disable HUD / UI"), &g_gameUIDisabled);
         //ImGui::Combo("##PlayerList", &m_selectedPlayerIndex, m_playerList, m_playerCount); // for debugging. do not uncomment unless u are filthy cheater!
     }
 

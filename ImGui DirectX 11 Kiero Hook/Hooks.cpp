@@ -108,9 +108,8 @@ void hooks::Init()
 
     TD::GameCamera* pGameCamera = TD::RogueClient::Singleton()->m_pClient->m_pWorld->m_pCameraManager->m_pCamera1;
     TD::GameCamera* pGameCamera2 = TD::RogueClient::Singleton()->m_pClient->m_pWorld->m_pCameraManager->m_pCamera2;
-
-    //__int64 pUIRootVTable = g_pBase + 0x3374C58; 
-    //__int64 pUIRootVTable = g_pBase + 0x3374C58;
+    //A54B90
+    __int64 pUIRootVTable = g_pBase + 0x33731C8;
 
 
     HookVTableFunction(pGameCamera, 4, hCameraUpdate, oCameraUpdate);
@@ -119,8 +118,8 @@ void hooks::Init()
     std::cout << "cameraUpdate2 is Hooked!\n";
     HookVTableFunction(TD::RogueClient::Singleton(), 5, hRClientUpdate, oRClientUpdate);
     std::cout << "rClientUpdate is Hooked!\n";
-    //HookVTableFunction(&pUIRootVTable, 0, hUIRootUpdate, oUIRootUpdate);
-    //std::cout << "uiRootUpdate is Hooked!\n";
+    HookVTableFunction(&pUIRootVTable, 0, hUIRootUpdate, oUIRootUpdate);
+    std::cout << "uiRootUpdate is Hooked!\n";
 }
 
 void hooks::DisableHooks()

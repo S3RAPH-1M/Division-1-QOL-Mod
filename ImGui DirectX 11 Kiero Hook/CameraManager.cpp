@@ -156,7 +156,7 @@ void CameraManager::DrawUI()
         ImGui::SliderInt(xor ("Field Of View"), &FovAmount, 55, 180);
 
 
-        //ImGui::Checkbox(xor ("Disable HUD / UI"), &g_gameUIDisabled);
+        ImGui::Checkbox(xor ("Disable HUD / UI"), &g_gameUIDisabled);
         //ImGui::Combo("##PlayerList", &m_selectedPlayerIndex, m_playerList, m_playerCount); // for debugging. do not uncomment unless u are filthy cheater!
     }
 

@@ -33,7 +33,6 @@ template<typename T> void write_memory(uintptr_t address, T value);
 
 extern Main* g_mainHandle;
 extern HINSTANCE g_dllHandle;
-extern bool g_gameUIDisabled;
 extern bool g_shutdown;
 extern bool menu_key_pressed;
 extern int FovAmount;

@@ -23,7 +23,7 @@
 #include "ConfigManager.h"
 #include "KeybindHelper.h"
 #pragma comment(lib, "psapi.lib")
-
+#pragma comment(lib, "libMinHook.x64.lib")
 
 // Credential goes to https://www.codeproject.com/Articles/10809/A-Small-Class-to-Read-INI-File
 // IniWriter and IniReader by Xiangxiong Jian

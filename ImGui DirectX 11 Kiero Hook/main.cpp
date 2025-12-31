@@ -279,8 +279,13 @@ void Main::Initialize()
 	std::cout << "Created the m_pVisualManager!\n";
 }
 
-void Console(void)
+void Console(bool enable)
 {
+	if (!enable)
+	{
+		return;
+	}
+
 	AllocConsole();
 	FILE* f;
 	freopen_s(&f, "CONOUT$", "w", stdout);
@@ -293,7 +298,7 @@ void Console(void)
 // Returns TRUE when the hook is successfully set.
 DWORD WINAPI MainThread(LPVOID lpReserved)
 {
-	Console();
+	Console(false);
 	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 
 

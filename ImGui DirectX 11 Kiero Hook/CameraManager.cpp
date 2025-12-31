@@ -71,16 +71,14 @@ float quicklerp(float a, float b, float t)
     return a + (b - a) * t;
 }
 
-float CurrentFOV = 0.0f;
 float boneOffsetX = 0.0f; // Right
 float boneOffsetY = 0.0f; // Up
 float boneOffsetZ = 0.0f; // Forward
-void CameraManager::CameraHook(__int64 pCamera)
+void CameraManager::FirstPerson(__int64 pCamera)
 {
-    // Get Object Reference To the Game Camera
     TD::GameCamera* pGameCamera = (TD::GameCamera*)pCamera;
 
-    if(useFirstPerson)
+    if (useFirstPerson)
     {
         if (!m_selectedPlayerIndex)
         {
@@ -104,9 +102,16 @@ void CameraManager::CameraHook(__int64 pCamera)
 
             pGameCamera->m_Transform.r[3] = cameraPos;
         }
-        
-
     }
+}
+
+float CurrentFOV = 0.0f;
+void CameraManager::CameraHook(__int64 pCamera)
+{
+    // Get Object Reference To the Game Camera
+    TD::GameCamera* pGameCamera = (TD::GameCamera*)pCamera;
+
+    FirstPerson(pCamera);
 
     if (CurrentFOV == 0.0f)
     {

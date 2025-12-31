@@ -279,6 +279,18 @@ void Main::Initialize()
 	std::cout << "Created the m_pVisualManager!\n";
 }
 
+void Console(bool enable)
+{
+	if (!enable)
+	{
+		return;
+	}
+
+	AllocConsole();
+	FILE* f;
+	freopen_s(&f, "CONOUT$", "w", stdout);
+	std::cout << "Debug information starts:\n";
+}
 
 // MainThread: Initializes a DirectX 11 hook using the kiero library.
 // Repeatedly attempts to initialize kiero until successful.
@@ -286,11 +298,7 @@ void Main::Initialize()
 // Returns TRUE when the hook is successfully set.
 DWORD WINAPI MainThread(LPVOID lpReserved)
 {
-	//AllocConsole();
-	//FILE* f;
-	//freopen_s(&f, "CONOUT$", "w", stdout);
-	//std::cout << "Debug information starts:\n";
-
+	Console(false);
 	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 
 

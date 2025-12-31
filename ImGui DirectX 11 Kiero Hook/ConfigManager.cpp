@@ -30,6 +30,7 @@ void LoadSettings()
 		ZoomFovAmount = iniReader.ReadInteger(str_settings, (char*)"ZoomFovAmount", 55);
 		g_gameUIDisabled = iniReader.ReadInteger(str_settings, (char*)"hideHUD", g_gameUIDisabled);
 		KeybindHelper::LoadKeyBind(str_settings, "zoomKey", ZoomKey, iniReader);
+		KeybindHelper::LoadKeyBind(str_settings, "hudKey", HudKey, iniReader);
 		KeybindHelper::LoadKeyBind(str_settings, "menuKey", menuKey, iniReader);
 	}
 	catch (...) {
@@ -51,6 +52,7 @@ void SaveSettings()
 		iniWriter.WriteInteger(str_settings, (char*)"zoomFovAmount", ZoomFovAmount);
 		iniWriter.WriteInteger(str_settings, (char*)"hideHUD", g_gameUIDisabled);
 		KeybindHelper::SaveKeyBind(str_settings, "zoomKey", ZoomKey, iniWriter);
+		KeybindHelper::SaveKeyBind(str_settings, "hudKey", HudKey, iniWriter);
 		KeybindHelper::SaveKeyBind(str_settings, "menuKey", menuKey, iniWriter);
 	}
 	catch (...) {

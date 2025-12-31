@@ -52,14 +52,11 @@ __int64 __fastcall hUIRootUpdate(__int64 a1, __int64 a2)
 {
     if (g_gameUIDisabled)
     {
-        std::cout << "UI is Off!\n";
         return 0;
     }
    
-    std::cout << "UI is ON!\n";
     return oUIRootUpdate(a1, a2);
 }
-
 
 namespace
 {
@@ -108,7 +105,6 @@ void hooks::Init()
 
     TD::GameCamera* pGameCamera = TD::RogueClient::Singleton()->m_pClient->m_pWorld->m_pCameraManager->m_pCamera1;
     TD::GameCamera* pGameCamera2 = TD::RogueClient::Singleton()->m_pClient->m_pWorld->m_pCameraManager->m_pCamera2;
-    //A54B90
     __int64 pUIRootVTable = g_pBase + 0x33731C8;
 
 

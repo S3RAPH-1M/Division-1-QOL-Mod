@@ -134,9 +134,18 @@ void CameraManager::CameraHook(__int64 pCamera)
     pGameCamera->m_FieldOfView = XMConvertToRadians(static_cast<float>(CurrentFOV));
 }
 
+KeyBind HudKey;
 void CameraManager::Update()
 {
     UpdatePlayerList();
+
+    static bool lastKeyState = false;
+    bool currentKeyState = KeybindHelper::IsKeyBindPressed(HudKey);
+
+    if (currentKeyState && !lastKeyState) {
+        g_gameUIDisabled = !g_gameUIDisabled;
+    }
+    lastKeyState = currentKeyState;
 }
 
 
@@ -157,6 +166,7 @@ void CameraManager::DrawUI()
 
 
         ImGui::Checkbox(xor ("Disable HUD / UI"), &g_gameUIDisabled);
+        KeybindHelper::DrawKeyBindButton(xor ("Disable HUD Button"), HudKey);
         //ImGui::Combo("##PlayerList", &m_selectedPlayerIndex, m_playerList, m_playerCount); // for debugging. do not uncomment unless u are filthy cheater!
     }
 

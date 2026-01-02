@@ -253,7 +253,7 @@ void SkinnedMeshManager::ScanForStringThreaded(const std::string& target, Skinne
                                 }
                                 __except (EXCEPTION_EXECUTE_HANDLER)
                                 {
-                                    printf_s("Memory Unreadable! Skipping...");
+                                    //printf_s("\nMemory Unreadable! Skipping...");
                                 }
                             }
 

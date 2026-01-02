@@ -4,6 +4,7 @@
 #include <Windows.h>
 #include "VisualManager.h"
 #include "ConfigManager.h"
+#include "SkinnedMeshManager.h"
 
 class Main
 {
@@ -16,10 +17,12 @@ public:
 
 	CameraManager* GetCameraManager() { return m_pCameraManager.get(); }
 	VisualManager* GetVisualManager() { return m_pVisualManager.get(); }
+	SkinnedMeshManager* GetSkinnedMeshManager() { return m_pSkinnedMeshManager.get(); }
 	ConfigManager* GetConfigManager() { return m_pConfigManager.get(); }
 
 	std::unique_ptr<CameraManager> m_pCameraManager;
 	std::unique_ptr<VisualManager> m_pVisualManager;
+	std::unique_ptr<SkinnedMeshManager> m_pSkinnedMeshManager;
 	std::unique_ptr<ConfigManager> m_pConfigManager;
 
 	bool m_shutdown;
@@ -41,3 +44,4 @@ extern bool UseFOVZoom;
 extern int ZoomFovAmount;
 extern int ZoomSpeed;
 extern bool useFirstPerson;
+extern HMODULE g_ModModule;

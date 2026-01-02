@@ -93,6 +93,12 @@
     <ClCompile Include="configGlobals.cpp">
       <Filter>Source Files\ini</Filter>
     </ClCompile>
+    <ClCompile Include="SkinnedMeshManager.cpp">
+      <Filter>Source Files\Managers</Filter>
+    </ClCompile>
+    <ClCompile Include="SkinnedMeshManager.h">
+      <Filter>Header Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="kiero\minhook\dll_resources\MinHook.rc">

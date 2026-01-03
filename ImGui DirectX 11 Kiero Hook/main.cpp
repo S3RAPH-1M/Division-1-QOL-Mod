@@ -23,7 +23,7 @@
 #include "ConfigManager.h"
 #include "KeybindHelper.h"
 #pragma comment(lib, "psapi.lib")
-
+#pragma comment(lib, "libMinHook.x64.lib")
 
 // Credential goes to https://www.codeproject.com/Articles/10809/A-Small-Class-to-Read-INI-File
 // IniWriter and IniReader by Xiangxiong Jian
@@ -197,6 +197,10 @@ HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 		{
 			tab = 2;
 		}
+		if (ImGui::Button(xor ("Skin Changer"), ImVec2(GUI_COLUMN_OFFSET - 10, 20)))
+		{
+			tab = 3;
+		}
 		if (ImGui::Button(xor ("Settings"), ImVec2(GUI_COLUMN_OFFSET - 10, 20)))
 		{
 			tab = 999;
@@ -217,6 +221,9 @@ HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 				case 2:
 					g_mainHandle->GetVisualManager()->DrawUI();
 				break;
+				case 3:
+					g_mainHandle->GetSkinnedMeshManager()->DrawUI();
+					break;
 				case 999:
 					g_mainHandle->GetConfigManager()->DrawUI();
 				break;
@@ -275,8 +282,15 @@ void Main::Initialize()
 
 	m_pCameraManager = std::make_unique<CameraManager>();
 	std::cout << "Created the m_pCameraManager!\n";
+
 	m_pVisualManager = std::make_unique<VisualManager>();
 	std::cout << "Created the m_pVisualManager!\n";
+
+	m_pSkinnedMeshManager = std::make_unique<SkinnedMeshManager>();
+	std::cout << "Created the m_pSkinnedMeshManager!\n";
+
+	m_pConfigManager = std::make_unique<ConfigManager>();
+	std::cout << "Created the m_pConfigManager!\n";
 }
 
 void Console(bool enable)
@@ -298,7 +312,7 @@ void Console(bool enable)
 // Returns TRUE when the hook is successfully set.
 DWORD WINAPI MainThread(LPVOID lpReserved)
 {
-	Console(false);
+	Console(true);
 	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 
 
@@ -319,6 +333,7 @@ DWORD WINAPI MainThread(LPVOID lpReserved)
 // Handles DLL load/unload events.
 // - On load (DLL_PROCESS_ATTACH): disables thread notifications and starts MainThread.
 // - On unload (DLL_PROCESS_DETACH): shuts down kiero library.
+HMODULE g_ModModule = nullptr;
 BOOL WINAPI DllMain(HMODULE hMod, DWORD dwReason, LPVOID lpReserved)
 {
 	switch (dwReason)
@@ -326,6 +341,7 @@ BOOL WINAPI DllMain(HMODULE hMod, DWORD dwReason, LPVOID lpReserved)
 	case DLL_PROCESS_ATTACH:
 		DisableThreadLibraryCalls(hMod);
 		CreateThread(nullptr, 0, MainThread, hMod, 0, nullptr);
+		g_ModModule = hMod;
 		break;
 	case DLL_PROCESS_DETACH:
 		kiero::shutdown();
@@ -333,4 +349,6 @@ BOOL WINAPI DllMain(HMODULE hMod, DWORD dwReason, LPVOID lpReserved)
 	}
 	return TRUE;
 }
+
+
 

@@ -72,6 +72,7 @@ public:
 	CameraManager();
 	~CameraManager();
 
+	void FirstPerson(__int64 pCamera);
 	void CameraHook(__int64 pCamera);
 	void Update();
 	void DrawUI();

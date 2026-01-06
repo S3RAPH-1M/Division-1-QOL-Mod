@@ -202,8 +202,6 @@ void ApplyDivisionTheme()
 	style.FrameRounding = 3.0f;
 	style.ScrollbarRounding = 3.0f;
 	style.GrabRounding = 2.0f;
-
-
 }
 
 // hkPresent: Custom DirectX 11 Present hook for rendering ImGui menus.

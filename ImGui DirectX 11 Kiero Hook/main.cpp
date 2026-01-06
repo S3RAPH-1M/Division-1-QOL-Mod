@@ -49,7 +49,7 @@ static bool init = false;
 static bool game_is_initialized = false;
 
 static int MENU_KEY;
-static bool show_menu = true;
+static bool show_menu = false;
 bool menu_key_pressed = false;
 constexpr int GUI_COLUMN_OFFSET = 200;
 
@@ -116,11 +116,95 @@ void Update(void) {
 
 	if (game_is_initialized == false) return;
 	if (GetForegroundWindow() != FindWindowA(NULL, "Tom Clancy's The Division")) return;
-	
+
 	// Use this for anything u need to run on next frame / Update.
 	g_mainHandle->GetCameraManager()->Update();
 }
 
+
+bool g_InDarkZone = false;
+void ApplyDivisionTheme()
+{
+	ImGuiStyle& style = ImGui::GetStyle();
+	ImVec4* colors = style.Colors;
+
+	// Define default orange and purple colors
+	ImVec4 orange(1.00f, 0.45f, 0.00f, 1.00f);
+	ImVec4 orangeHovered(1.00f, 0.55f, 0.00f, 1.00f);
+	ImVec4 orangeTransparent(1.00f, 0.55f, 0.00f, 0.50f);
+	ImVec4 orangeActive(1.00f, 0.65f, 0.00f, 1.00f);
+
+	// Purple colors
+	ImVec4 purple(0.60f, 0.20f, 1.00f, 1.00f);
+	ImVec4 purpleHovered(0.70f, 0.30f, 1.00f, 1.00f);
+	ImVec4 purpleTransparent(0.60f, 0.20f, 1.00f, 0.50f);
+	ImVec4 purpleActive(0.50f, 0.10f, 1.00f, 1.00f);
+
+	// Use purple if in dark zone
+	if (g_InDarkZone)
+	{
+		orange = purple;
+		orangeHovered = purpleHovered;
+		orangeTransparent = purpleTransparent;
+		orangeActive = purpleActive;
+	}
+
+	colors[ImGuiCol_WindowBg] = ImVec4(0.12f, 0.12f, 0.12f, 1.00f);
+	colors[ImGuiCol_ChildBg] = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);
+	colors[ImGuiCol_PopupBg] = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);
+	colors[ImGuiCol_Border] = ImVec4(0.20f, 0.20f, 0.25f, 1.00f);
+	colors[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+
+	colors[ImGuiCol_Text] = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+	colors[ImGuiCol_TextDisabled] = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
+	colors[ImGuiCol_Header] = orangeTransparent;
+	colors[ImGuiCol_HeaderHovered] = orangeHovered;
+	colors[ImGuiCol_HeaderActive] = orange;
+
+	colors[ImGuiCol_Button] = ImVec4(0.20f, 0.20f, 0.25f, 1.00f);
+	colors[ImGuiCol_ButtonHovered] = orangeHovered;
+	colors[ImGuiCol_ButtonActive] = orangeActive;
+
+	colors[ImGuiCol_Tab] = ImVec4(0.20f, 0.20f, 0.25f, 1.00f);
+	colors[ImGuiCol_TabHovered] = orangeHovered;
+	colors[ImGuiCol_TabActive] = orangeActive;
+	colors[ImGuiCol_TabUnfocused] = ImVec4(0.15f, 0.15f, 0.18f, 1.00f);
+	colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.20f, 0.20f, 0.25f, 1.00f);
+
+	colors[ImGuiCol_SliderGrab] = orange;
+	colors[ImGuiCol_SliderGrabActive] = orangeHovered;
+	colors[ImGuiCol_PlotHistogram] = orange;
+	colors[ImGuiCol_PlotHistogramHovered] = orangeHovered;
+
+	colors[ImGuiCol_FrameBg] = ImVec4(0.15f, 0.15f, 0.18f, 1.00f);
+	colors[ImGuiCol_FrameBgHovered] = ImVec4(orange.x, orange.y, orange.z, 0.40f);
+	colors[ImGuiCol_FrameBgActive] = ImVec4(orange.x, orange.y, orange.z, 0.60f);
+	colors[ImGuiCol_Separator] = ImVec4(0.20f, 0.20f, 0.25f, 1.00f);
+	colors[ImGuiCol_SeparatorHovered] = orange;
+	colors[ImGuiCol_SeparatorActive] = orangeHovered;
+
+	colors[ImGuiCol_TitleBg] = orange;
+	colors[ImGuiCol_TitleBgActive] = orange;
+	colors[ImGuiCol_TitleBgCollapsed] = orange;
+
+	colors[ImGuiCol_ResizeGrip] = ImVec4(0.20f, 0.20f, 0.25f, 1.00f);
+	colors[ImGuiCol_ResizeGripHovered] = orangeHovered;
+	colors[ImGuiCol_ResizeGripActive] = orangeActive;
+
+	colors[ImGuiCol_ScrollbarBg] = ImVec4(0.08f, 0.08f, 0.10f, 1.00f);
+	colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.20f, 0.20f, 0.25f, 1.00f);
+	colors[ImGuiCol_ScrollbarGrabHovered] = orangeHovered;
+	colors[ImGuiCol_ScrollbarGrabActive] = orangeActive;
+
+	colors[ImGuiCol_CheckMark] = orange;
+
+	style.WindowRounding = 4.0f;
+	style.FrameRounding = 3.0f;
+	style.ScrollbarRounding = 3.0f;
+	style.GrabRounding = 2.0f;
+
+
+}
 
 // hkPresent: Custom DirectX 11 Present hook for rendering ImGui menus.
 // - Initializes DirectX device, context, backbuffer, and ImGui on first call.
@@ -167,12 +251,16 @@ HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 
 	lastKeyState = currentKeyState;
 
-
+	if (menuKey.keys.empty())
+	{
+		show_menu = true;
+	}
 
 	ImGui_ImplDX11_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 
+	ApplyDivisionTheme();
 	if (show_menu) {
 
 		ImGui::Begin(xor ("ssh's QOL Tools"), nullptr);
@@ -197,10 +285,13 @@ HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 		{
 			tab = 2;
 		}
+		// Hiding as feature is incomplete.
+		/*
 		if (ImGui::Button(xor ("Skin Changer"), ImVec2(GUI_COLUMN_OFFSET - 10, 20)))
 		{
 			tab = 3;
 		}
+		*/
 		if (ImGui::Button(xor ("Settings"), ImVec2(GUI_COLUMN_OFFSET - 10, 20)))
 		{
 			tab = 999;
@@ -217,16 +308,16 @@ HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 				switch (tab) {
 				case 1:
 					g_mainHandle->GetCameraManager()->DrawUI();
-				break;
+					break;
 				case 2:
 					g_mainHandle->GetVisualManager()->DrawUI();
-				break;
+					break;
 				case 3:
 					g_mainHandle->GetSkinnedMeshManager()->DrawUI();
 					break;
 				case 999:
 					g_mainHandle->GetConfigManager()->DrawUI();
-				break;
+					break;
 				default:
 					ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 204, 51, 255));
 					char* text = (char*)"Click the buttons on the left for the menus. Happy Playing! :)";
@@ -312,7 +403,7 @@ void Console(bool enable)
 // Returns TRUE when the hook is successfully set.
 DWORD WINAPI MainThread(LPVOID lpReserved)
 {
-	Console(true);
+	Console(false);
 	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 
 
@@ -349,6 +440,3 @@ BOOL WINAPI DllMain(HMODULE hMod, DWORD dwReason, LPVOID lpReserved)
 	}
 	return TRUE;
 }
-
-
-

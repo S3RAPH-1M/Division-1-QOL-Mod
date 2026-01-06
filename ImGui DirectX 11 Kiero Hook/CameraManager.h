@@ -77,6 +77,7 @@ public:
 	void Update();
 	void DrawUI();
 	void UpdatePlayerList();
+	void IsMainPlayerInDarkZone();
 public:
 	bool m_cameraEnabled;
 	bool m_firstEnable;

@@ -145,7 +145,7 @@ void CameraManager::CameraHook(__int64 pCamera)
     pGameCamera->m_FieldOfView = XMConvertToRadians(static_cast<float>(CurrentFOV));
 }
 
-void CameraManager::IsMainPlayerInDarkZone()
+void CameraManager::UpdateMainPlayerWorldState()
 {
     if (m_pAgents.size() == 0 || m_selectedPlayerIndex < 0 || m_selectedPlayerIndex >= (int)m_pAgents.size())
     {
@@ -166,6 +166,24 @@ void CameraManager::IsMainPlayerInDarkZone()
     {
         g_InDarkZone = false;
     }
+
+    if (pAgent->IsRogue())
+    {
+        g_IsPlayerRogue = true;
+    }
+    else
+    {
+        g_IsPlayerRogue = false;
+    }
+
+    if (pAgent->IsDead())
+    {
+        g_IsPlayerDead = true;
+    }
+    else
+    {
+        g_IsPlayerDead = false;
+    }
 }
 
 KeyBind HudKey;
@@ -181,7 +199,7 @@ void CameraManager::Update()
     }
     lastKeyState = currentKeyState;
 
-    IsMainPlayerInDarkZone();
+    UpdateMainPlayerWorldState();
 }
 
 

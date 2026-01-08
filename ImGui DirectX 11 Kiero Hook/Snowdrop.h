@@ -40,6 +40,23 @@ namespace TD
             return (type == 1 || type == 7);
         }
 
+        bool IsInDarkZone()
+        {
+            typedef bool(__fastcall* tAgentIsInDarkZone)(Agent*);
+            tAgentIsInDarkZone AgentIsInDarkZone = (tAgentIsInDarkZone)(g_pBase + 0xD15C40); // 48 8B 81 ? ? ? ? 48 85 C0 74 ? 48 8B 51
+            return AgentIsInDarkZone(this);
+        }
+
+        bool IsRogue() const
+        {
+            return *reinterpret_cast<const BYTE*>(reinterpret_cast<const char*>(this) + 0x75C) != 0;
+        }
+
+        bool IsDead() const
+        {
+            return *reinterpret_cast<const BYTE*>(  reinterpret_cast<const char*>(this) + 0x1C0) != 0;
+        }
+
         XMMATRIX GetHeadBoneMatrix()
         {
             __int64 bone_root = *(__int64*)((__int64)this + 0x1D0);
@@ -64,12 +81,6 @@ namespace TD
             return *reinterpret_cast<XMMATRIX*>(headBoneMatrixAddr);
         }
 
-        bool IsInDarkZone()
-        {
-            typedef bool(__fastcall* tAgentIsInDarkZone)(Agent*);
-            tAgentIsInDarkZone AgentIsInDarkZone = (tAgentIsInDarkZone)(g_pBase + 0xD15C40); // 48 8B 81 ? ? ? ? 48 85 C0 74 ? 48 8B 51
-            return AgentIsInDarkZone(this);
-        }
     };
 
     class AgentInfo

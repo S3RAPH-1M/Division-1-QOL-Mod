@@ -47,6 +47,26 @@ struct DOFStructure
   float maxCoC;
 };
 
+void VisualManager::Update()
+{
+    TD::EnvironmentManager* pEnvManager = TD::RogueClient::Singleton()->m_pClient->m_pWorld->m_pEnvironmentManager;
+
+    if (m_overrideTimeOfDay)
+    {
+        pEnvManager->m_FreezeToD = m_overrideTimeOfDay;
+        int hours = m_customTimeOfDay / 100;
+        int minutes = m_customTimeOfDay - (hours * 100);
+
+        pEnvManager->m_TimeOfDay =
+            (hours * 60 + minutes) * 60 * 1000;
+    }
+
+    if (m_freezeWeatherTimer)
+    {
+        pEnvManager->m_RunWeatherTimer = false;
+    }
+}
+
 void VisualManager::DrawUI()
 {
   TD::EnvironmentManager* pEnvManager = TD::RogueClient::Singleton()->m_pClient->m_pWorld->m_pEnvironmentManager;
@@ -94,21 +114,16 @@ void VisualManager::DrawUI()
       pEnvManager->m_TimeOfDay = (hours * 60 + minutes) * 60 * 1000;
   }
 
-  if (ImGui::Checkbox("Override time of day", &m_overrideTimeOfDay))
-  {
-    pEnvManager->m_FreezeToD = m_overrideTimeOfDay;
-    if (m_overrideTimeOfDay)
-    {
-      int hours = m_customTimeOfDay / 100;
-      int minutes = m_customTimeOfDay - hours;
-      pEnvManager->m_TimeOfDay = (hours * 60 + minutes) * 60 * 1000;
-    }
-  }
+  ImGui::Checkbox("Override time of day", &m_overrideTimeOfDay);
+  ImGui::Spacing();
+
 
   ImGui::Text("Blend Transition Time Start (ms)");
   ImGui::InputInt("##BlendTransitionTimeStart", &pEnvManager->m_WeatherTimer, 1000, 1000);
   ImGui::Text("Blend Transition Time End (ms)");
   ImGui::InputInt("##BlendTransitionTimeEnd", &pEnvManager->m_WeatherTimerMax, 1000, 1000);
+  ImGui::Spacing();
+  ImGui::Checkbox("Freeze Transition Timer", &m_freezeWeatherTimer);
 
   if(!pEnvManager->m_RunWeatherTimer)
   {

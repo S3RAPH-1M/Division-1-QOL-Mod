@@ -87,6 +87,7 @@ template<typename T> void write_memory(uintptr_t address, T value)
 // - Creates a new ImGui context.
 // - Configures ImGui settings (prevents mouse cursor changes).
 // - Initializes ImGui for Win32 input and DirectX 11 rendering.
+ImFont* g_DivisionFont = nullptr;
 void InitImGui()
 {
 	ImGui::CreateContext();
@@ -95,6 +96,7 @@ void InitImGui()
 	ImGui_ImplWin32_Init(window);
 	ImGui_ImplDX11_Init(pDevice, pContext);
 }
+
 
 // WndProc: Custom window procedure for handling Windows messages.
 // - Passes messages to ImGui's Win32 handler first to process UI input.
@@ -119,29 +121,57 @@ void Update(void) {
 
 	// Use this for anything u need to run on next frame / Update.
 	g_mainHandle->GetCameraManager()->Update();
+	g_mainHandle->GetVisualManager()->Update();
 }
 
 
 bool g_InDarkZone = false;
+bool g_IsPlayerRogue = false;
+bool g_IsPlayerDead = false;
 void ApplyDivisionTheme()
 {
 	ImGuiStyle& style = ImGui::GetStyle();
 	ImVec4* colors = style.Colors;
 
-	// Define default orange and purple colors
+	// Agent Colors
 	ImVec4 orange(1.00f, 0.45f, 0.00f, 1.00f);
 	ImVec4 orangeHovered(1.00f, 0.55f, 0.00f, 1.00f);
 	ImVec4 orangeTransparent(1.00f, 0.55f, 0.00f, 0.50f);
 	ImVec4 orangeActive(1.00f, 0.65f, 0.00f, 1.00f);
 
-	// Purple colors
+	// Dark-Zone Colors
 	ImVec4 purple(0.60f, 0.20f, 1.00f, 1.00f);
 	ImVec4 purpleHovered(0.70f, 0.30f, 1.00f, 1.00f);
 	ImVec4 purpleTransparent(0.60f, 0.20f, 1.00f, 0.50f);
 	ImVec4 purpleActive(0.50f, 0.10f, 1.00f, 1.00f);
 
-	// Use purple if in dark zone
-	if (g_InDarkZone)
+	// Rogue Colors
+	ImVec4 red(1.00f, 0.20f, 0.20f, 1.00f);
+	ImVec4 redHovered(1.00f, 0.30f, 0.30f, 1.00f);
+	ImVec4 redTransparent(1.00f, 0.20f, 0.20f, 0.50f);
+	ImVec4 redActive(0.85f, 0.10f, 0.10f, 1.00f);
+
+	// Dead Colors
+	ImVec4 grey(0.60f, 0.60f, 0.60f, 1.00f);
+	ImVec4 greyHovered(0.70f, 0.70f, 0.70f, 1.00f);
+	ImVec4 greyTransparent(0.60f, 0.60f, 0.60f, 0.50f);
+	ImVec4 greyActive(0.50f, 0.50f, 0.50f, 1.00f);
+
+	if (g_IsPlayerDead) 
+	{
+		orange = grey;
+		orangeHovered = greyHovered;
+		orangeTransparent = greyTransparent;
+		orangeActive = greyActive;
+	}
+	else if (g_IsPlayerRogue)
+	{
+		orange = red;
+		orangeHovered = redHovered;
+		orangeTransparent = redTransparent;
+		orangeActive = redActive;
+	}
+	else if (g_InDarkZone) 
 	{
 		orange = purple;
 		orangeHovered = purpleHovered;
@@ -149,37 +179,25 @@ void ApplyDivisionTheme()
 		orangeActive = purpleActive;
 	}
 
-	colors[ImGuiCol_WindowBg] = ImVec4(0.12f, 0.12f, 0.12f, 1.00f);
-	colors[ImGuiCol_ChildBg] = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);
-	colors[ImGuiCol_PopupBg] = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);
-	colors[ImGuiCol_Border] = ImVec4(0.20f, 0.20f, 0.25f, 1.00f);
-	colors[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
 
-	colors[ImGuiCol_Text] = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
-	colors[ImGuiCol_TextDisabled] = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
+
 	colors[ImGuiCol_Header] = orangeTransparent;
 	colors[ImGuiCol_HeaderHovered] = orangeHovered;
 	colors[ImGuiCol_HeaderActive] = orange;
 
-	colors[ImGuiCol_Button] = ImVec4(0.20f, 0.20f, 0.25f, 1.00f);
 	colors[ImGuiCol_ButtonHovered] = orangeHovered;
 	colors[ImGuiCol_ButtonActive] = orangeActive;
 
-	colors[ImGuiCol_Tab] = ImVec4(0.20f, 0.20f, 0.25f, 1.00f);
 	colors[ImGuiCol_TabHovered] = orangeHovered;
 	colors[ImGuiCol_TabActive] = orangeActive;
-	colors[ImGuiCol_TabUnfocused] = ImVec4(0.15f, 0.15f, 0.18f, 1.00f);
-	colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.20f, 0.20f, 0.25f, 1.00f);
 
 	colors[ImGuiCol_SliderGrab] = orange;
 	colors[ImGuiCol_SliderGrabActive] = orangeHovered;
 	colors[ImGuiCol_PlotHistogram] = orange;
 	colors[ImGuiCol_PlotHistogramHovered] = orangeHovered;
 
-	colors[ImGuiCol_FrameBg] = ImVec4(0.15f, 0.15f, 0.18f, 1.00f);
 	colors[ImGuiCol_FrameBgHovered] = ImVec4(orange.x, orange.y, orange.z, 0.40f);
 	colors[ImGuiCol_FrameBgActive] = ImVec4(orange.x, orange.y, orange.z, 0.60f);
-	colors[ImGuiCol_Separator] = ImVec4(0.20f, 0.20f, 0.25f, 1.00f);
 	colors[ImGuiCol_SeparatorHovered] = orange;
 	colors[ImGuiCol_SeparatorActive] = orangeHovered;
 
@@ -187,17 +205,30 @@ void ApplyDivisionTheme()
 	colors[ImGuiCol_TitleBgActive] = orange;
 	colors[ImGuiCol_TitleBgCollapsed] = orange;
 
-	colors[ImGuiCol_ResizeGrip] = ImVec4(0.20f, 0.20f, 0.25f, 1.00f);
 	colors[ImGuiCol_ResizeGripHovered] = orangeHovered;
 	colors[ImGuiCol_ResizeGripActive] = orangeActive;
 
-	colors[ImGuiCol_ScrollbarBg] = ImVec4(0.08f, 0.08f, 0.10f, 1.00f);
-	colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.20f, 0.20f, 0.25f, 1.00f);
 	colors[ImGuiCol_ScrollbarGrabHovered] = orangeHovered;
 	colors[ImGuiCol_ScrollbarGrabActive] = orangeActive;
 
 	colors[ImGuiCol_CheckMark] = orange;
 
+	colors[ImGuiCol_Text] = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+	colors[ImGuiCol_TextDisabled] = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
+	colors[ImGuiCol_WindowBg] = ImVec4(0.12f, 0.12f, 0.12f, 1.00f);
+	colors[ImGuiCol_ChildBg] = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);
+	colors[ImGuiCol_PopupBg] = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);
+	colors[ImGuiCol_Border] = ImVec4(0.20f, 0.20f, 0.25f, 1.00f);
+	colors[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+	colors[ImGuiCol_Button] = ImVec4(0.20f, 0.20f, 0.25f, 1.00f);
+	colors[ImGuiCol_Tab] = ImVec4(0.20f, 0.20f, 0.25f, 1.00f);
+	colors[ImGuiCol_TabUnfocused] = ImVec4(0.15f, 0.15f, 0.18f, 1.00f);
+	colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.20f, 0.20f, 0.25f, 1.00f);
+	colors[ImGuiCol_FrameBg] = ImVec4(0.15f, 0.15f, 0.18f, 1.00f);
+	colors[ImGuiCol_Separator] = ImVec4(0.20f, 0.20f, 0.25f, 1.00f);
+	colors[ImGuiCol_ResizeGrip] = ImVec4(0.20f, 0.20f, 0.25f, 1.00f);
+	colors[ImGuiCol_ScrollbarBg] = ImVec4(0.08f, 0.08f, 0.10f, 1.00f);
+	colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.20f, 0.20f, 0.25f, 1.00f);
 	style.WindowRounding = 4.0f;
 	style.FrameRounding = 3.0f;
 	style.ScrollbarRounding = 3.0f;
@@ -259,8 +290,8 @@ HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 	ImGui::NewFrame();
 
 	ApplyDivisionTheme();
-	if (show_menu) {
-
+	if (show_menu) 
+	{
 		ImGui::Begin(xor ("ssh's QOL Tools"), nullptr);
 
 		ImGui::Columns(2);

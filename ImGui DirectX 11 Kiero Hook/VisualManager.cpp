@@ -47,14 +47,29 @@ struct DOFStructure
   float maxCoC;
 };
 
+void VisualManager::Update()
+{
+    TD::EnvironmentManager* pEnvManager = TD::RogueClient::Singleton()->m_pClient->m_pWorld->m_pEnvironmentManager;
+
+    if (m_overrideTimeOfDay)
+    {
+        pEnvManager->m_FreezeToD = m_overrideTimeOfDay;
+        int hours = m_customTimeOfDay / 100;
+        int minutes = m_customTimeOfDay - (hours * 100);
+
+        pEnvManager->m_TimeOfDay =
+            (hours * 60 + minutes) * 60 * 1000;
+    }
+
+    if (m_freezeWeatherTimer)
+    {
+        pEnvManager->m_RunWeatherTimer = false;
+    }
+}
+
 void VisualManager::DrawUI()
 {
   TD::EnvironmentManager* pEnvManager = TD::RogueClient::Singleton()->m_pClient->m_pWorld->m_pEnvironmentManager;
-  ImGui::Dummy(ImVec2(0, 10));
-  ImGui::Columns(4, "VisualColumns", false);
-  ImGui::NextColumn();
-  ImGui::SetColumnOffset(-1, 12);
-  ImGui::PushItemWidth(200);
 
   ImGui::Text("Current Environment");
   ImGui::Combo("##CurrentEnvironment", &m_selectedCurrentWeather, m_envNameArray, m_environmentCount);
@@ -72,7 +87,6 @@ void VisualManager::DrawUI()
   ImGui::SliderFloat("##BlendFactor", &pEnvManager->m_pEnvironmentValues->m_BlendValue, 0, 1);
 
   ImGui::Text("Time of Day");
-  ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 10));
   if (ImGui::InputInt("##TimeOfDay", &m_customTimeOfDay, 1, 10))
   {
     int hours = m_customTimeOfDay / 100;
@@ -100,27 +114,16 @@ void VisualManager::DrawUI()
       pEnvManager->m_TimeOfDay = (hours * 60 + minutes) * 60 * 1000;
   }
 
-  if (ImGui::Checkbox("Override time of day", &m_overrideTimeOfDay))
-  {
-    pEnvManager->m_FreezeToD = m_overrideTimeOfDay;
-    if (m_overrideTimeOfDay)
-    {
-      int hours = m_customTimeOfDay / 100;
-      int minutes = m_customTimeOfDay - hours;
-      pEnvManager->m_TimeOfDay = (hours * 60 + minutes) * 60 * 1000;
-    }
-  }
-  ImGui::PopStyleVar();
+  ImGui::Checkbox("Override time of day", &m_overrideTimeOfDay);
+  ImGui::Spacing();
 
-  ImGui::NextColumn();
-  ImGui::SetColumnOffset(-1, 552);
-  ImGui::PushItemWidth(200);
 
   ImGui::Text("Blend Transition Time Start (ms)");
   ImGui::InputInt("##BlendTransitionTimeStart", &pEnvManager->m_WeatherTimer, 1000, 1000);
   ImGui::Text("Blend Transition Time End (ms)");
-  ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 10));
   ImGui::InputInt("##BlendTransitionTimeEnd", &pEnvManager->m_WeatherTimerMax, 1000, 1000);
+  ImGui::Spacing();
+  ImGui::Checkbox("Freeze Transition Timer", &m_freezeWeatherTimer);
 
   if(!pEnvManager->m_RunWeatherTimer)
   {
@@ -136,6 +139,4 @@ void VisualManager::DrawUI()
           pEnvManager->m_RunWeatherTimer = !pEnvManager->m_RunWeatherTimer;
       }
   }
-
-  ImGui::PopStyleVar();
 }

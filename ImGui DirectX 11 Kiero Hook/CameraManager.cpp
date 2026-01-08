@@ -80,30 +80,36 @@ void CameraManager::FirstPerson(__int64 pCamera)
 
     if (useFirstPerson)
     {
-        if (!m_selectedPlayerIndex)
+        if (m_pAgents.size() == 0 || m_selectedPlayerIndex < 0 || m_selectedPlayerIndex >= (int)m_pAgents.size())
         {
-            XMMATRIX targetMatrix = m_pAgents[m_selectedPlayerIndex]->GetHeadBoneMatrix();
-            XMMATRIX rotationMatrix = XMMatrixRotationRollPitchYaw(XMConvertToRadians(m_camera.pitch), XMConvertToRadians(m_camera.yaw), 0);
-            XMMATRIX rollMatrix = XMMatrixRotationRollPitchYaw(0, 0, XMConvertToRadians(m_camera.roll));
-            rotationMatrix = XMMatrixMultiply(rollMatrix, rotationMatrix);
-
-            XMVECTOR cameraPos = targetMatrix.r[3];
-            cameraPos += m_camera.position.m128_f32[0] * targetMatrix.r[0];
-            cameraPos += m_camera.position.m128_f32[1] * targetMatrix.r[1];
-            cameraPos += m_camera.position.m128_f32[2] * targetMatrix.r[2];
-
-            cameraPos += (boneOffsetX / 100) * targetMatrix.r[0];
-            cameraPos += (boneOffsetY / 100) * targetMatrix.r[1];
-            cameraPos += (boneOffsetZ / 100) * targetMatrix.r[2];
-
-            targetMatrix.r[0] = XMVectorScale(targetMatrix.r[0], 0.0001f);
-            targetMatrix.r[1] = XMVectorScale(targetMatrix.r[1], 0.0001f);
-            targetMatrix.r[2] = XMVectorScale(targetMatrix.r[2], 0.0001f);
-
-            pGameCamera->m_Transform.r[3] = cameraPos;
+            return;
         }
+
+        TD::Agent* pAgent = m_pAgents[m_selectedPlayerIndex];
+        if (!pAgent)
+        {
+            return;
+        }
+
+        XMMATRIX targetMatrix = pAgent->GetHeadBoneMatrix();
+        XMMATRIX rotationMatrix = XMMatrixRotationRollPitchYaw(XMConvertToRadians(m_camera.pitch), XMConvertToRadians(m_camera.yaw), 0);
+        XMMATRIX rollMatrix = XMMatrixRotationRollPitchYaw(0, 0, XMConvertToRadians(m_camera.roll));
+        rotationMatrix = XMMatrixMultiply(rollMatrix, rotationMatrix);
+
+        XMVECTOR cameraPos = targetMatrix.r[3];
+        cameraPos += m_camera.position.m128_f32[0] * targetMatrix.r[0];
+        cameraPos += m_camera.position.m128_f32[1] * targetMatrix.r[1];
+        cameraPos += m_camera.position.m128_f32[2] * targetMatrix.r[2];
+
+        cameraPos += (boneOffsetX / 100) * targetMatrix.r[0];
+        cameraPos += (boneOffsetY / 100) * targetMatrix.r[1];
+        cameraPos += (boneOffsetZ / 100) * targetMatrix.r[2];
+
+        pGameCamera->m_Transform.r[3] = cameraPos;
     }
 }
+
+
 
 float CurrentFOV = 0.0f;
 void CameraManager::CameraHook(__int64 pCamera)
@@ -139,6 +145,47 @@ void CameraManager::CameraHook(__int64 pCamera)
     pGameCamera->m_FieldOfView = XMConvertToRadians(static_cast<float>(CurrentFOV));
 }
 
+void CameraManager::UpdateMainPlayerWorldState()
+{
+    if (m_pAgents.size() == 0 || m_selectedPlayerIndex < 0 || m_selectedPlayerIndex >= (int)m_pAgents.size())
+    {
+        return;
+    }
+
+    TD::Agent* pAgent = m_pAgents[m_selectedPlayerIndex];
+    if (!pAgent)
+    {
+        return;
+    }
+
+    if(pAgent->IsInDarkZone())
+    {
+        g_InDarkZone = true;
+    }
+    else
+    {
+        g_InDarkZone = false;
+    }
+
+    if (pAgent->IsRogue())
+    {
+        g_IsPlayerRogue = true;
+    }
+    else
+    {
+        g_IsPlayerRogue = false;
+    }
+
+    if (pAgent->IsDead())
+    {
+        g_IsPlayerDead = true;
+    }
+    else
+    {
+        g_IsPlayerDead = false;
+    }
+}
+
 KeyBind HudKey;
 void CameraManager::Update()
 {
@@ -151,6 +198,8 @@ void CameraManager::Update()
         g_gameUIDisabled = !g_gameUIDisabled;
     }
     lastKeyState = currentKeyState;
+
+    UpdateMainPlayerWorldState();
 }
 
 

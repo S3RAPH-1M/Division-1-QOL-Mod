@@ -45,3 +45,6 @@ extern int ZoomFovAmount;
 extern int ZoomSpeed;
 extern bool useFirstPerson;
 extern HMODULE g_ModModule;
+extern bool g_InDarkZone;
+extern bool g_IsPlayerRogue;
+extern bool g_IsPlayerDead;

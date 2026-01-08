@@ -20,6 +20,7 @@ public:
     ~VisualManager();
 
     void DOFHook(__int64 a1);
+    void Update();
     void DrawUI();
 
 private:
@@ -27,6 +28,7 @@ private:
 
     int m_customTimeOfDay;
     bool m_overrideTimeOfDay;
+    bool m_freezeWeatherTimer;
 
     __int64* m_envPresetArray;
     const char** m_envNameArray;

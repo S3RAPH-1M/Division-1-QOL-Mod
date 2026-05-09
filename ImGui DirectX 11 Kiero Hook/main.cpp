@@ -122,6 +122,7 @@ void Update(void) {
 	// Use this for anything u need to run on next frame / Update.
 	g_mainHandle->GetCameraManager()->Update();
 	g_mainHandle->GetVisualManager()->Update();
+	g_mainHandle->GetHeadManager()->Update();
 }
 
 
@@ -314,13 +315,14 @@ HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 		{
 			tab = 2;
 		}
-		// Hiding as feature is incomplete.
-		/*
 		if (ImGui::Button(xor ("Skin Changer"), ImVec2(GUI_COLUMN_OFFSET - 10, 20)))
 		{
 			tab = 3;
 		}
-		*/
+		if (ImGui::Button(xor ("Player"), ImVec2(GUI_COLUMN_OFFSET - 10, 20)))
+		{
+			tab = 4;
+		}
 		if (ImGui::Button(xor ("Settings"), ImVec2(GUI_COLUMN_OFFSET - 10, 20)))
 		{
 			tab = 999;
@@ -343,6 +345,9 @@ HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 					break;
 				case 3:
 					g_mainHandle->GetSkinnedMeshManager()->DrawUI();
+					break;
+				case 4:
+					g_mainHandle->GetHeadManager()->DrawUI();
 					break;
 				case 999:
 					g_mainHandle->GetConfigManager()->DrawUI();
@@ -411,6 +416,9 @@ void Main::Initialize()
 
 	m_pConfigManager = std::make_unique<ConfigManager>();
 	std::cout << "Created the m_pConfigManager!\n";
+
+	m_pHeadManager = std::make_unique<HeadManager>();
+	std::cout << "Created the m_pHeadManager!\n";
 }
 
 void Console(bool enable)
@@ -432,7 +440,7 @@ void Console(bool enable)
 // Returns TRUE when the hook is successfully set.
 DWORD WINAPI MainThread(LPVOID lpReserved)
 {
-	Console(false);
+	Console(true);
 	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 
 

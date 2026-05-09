@@ -246,6 +246,7 @@
     <ClCompile Include="CameraManager.cpp" />
     <ClCompile Include="configGlobals.cpp" />
     <ClCompile Include="ConfigManager.cpp" />
+    <ClCompile Include="HeadManager.cpp" />
     <ClCompile Include="Hooks.cpp" />
     <ClCompile Include="imgui\imgui.cpp" />
     <ClCompile Include="imgui\imgui_demo.cpp" />
@@ -280,6 +281,7 @@
     <ClInclude Include="configGlobals.h" />
     <ClInclude Include="ConfigManager.h" />
     <ClInclude Include="global.h" />
+    <ClInclude Include="HeadManager.h" />
     <ClInclude Include="imgui\imconfig.h" />
     <ClInclude Include="imgui\imgui.h" />
     <ClInclude Include="imgui\imgui_impl_dx11.h" />

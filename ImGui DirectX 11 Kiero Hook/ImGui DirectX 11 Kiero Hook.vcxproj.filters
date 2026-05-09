@@ -99,6 +99,9 @@
     <ClCompile Include="SkinnedMeshManager.h">
       <Filter>Header Files</Filter>
     </ClCompile>
+    <ClCompile Include="HeadManager.cpp">
+      <Filter>Source Files\Managers</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="kiero\minhook\dll_resources\MinHook.rc">
@@ -206,6 +209,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="configGlobals.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="HeadManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

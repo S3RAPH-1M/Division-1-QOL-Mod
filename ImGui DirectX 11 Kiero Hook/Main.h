@@ -5,6 +5,7 @@
 #include "VisualManager.h"
 #include "ConfigManager.h"
 #include "SkinnedMeshManager.h"
+#include "HeadManager.h"
 
 class Main
 {
@@ -19,11 +20,13 @@ public:
 	VisualManager* GetVisualManager() { return m_pVisualManager.get(); }
 	SkinnedMeshManager* GetSkinnedMeshManager() { return m_pSkinnedMeshManager.get(); }
 	ConfigManager* GetConfigManager() { return m_pConfigManager.get(); }
+	HeadManager* GetHeadManager() { return m_pHeadManager.get(); }
 
 	std::unique_ptr<CameraManager> m_pCameraManager;
 	std::unique_ptr<VisualManager> m_pVisualManager;
 	std::unique_ptr<SkinnedMeshManager> m_pSkinnedMeshManager;
 	std::unique_ptr<ConfigManager> m_pConfigManager;
+	std::unique_ptr<HeadManager> m_pHeadManager;
 
 	bool m_shutdown;
 public:

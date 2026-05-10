@@ -563,6 +563,27 @@ namespace
         return true;
     }
 
+    // Engine's `sync_character_clothing_and_accessories` (sub_16083F0). Clones
+    // the current AppearanceManager state into the staging arrays
+    // (m_PendingAttach, secondary slot table, m_DynArrayA, m_PathStrings2[3])
+    // and sets m_NeedsResync=1. SetClothingIdList calls this first when
+    // m_AssetRecords_Count==0 — we mirror that gate so our pipeline matches
+    // the engine's ordering exactly.
+    bool CallSyncGuarded(TD::AppearanceManager* am)
+    {
+        typedef __int64 (__fastcall *PFN)(TD::AppearanceManager*);
+        PFN fn = (PFN)(g_pBase + 0x16083F0);
+        __try
+        {
+            fn(am);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return false;
+        }
+        return true;
+    }
+
     // POD-only diagnostic snapshot. SEH-guarded reads of agent fields live here
     // so DrawUI doesn't have to host __try (it has C++ destructors all over).
     struct DiagInfo
@@ -848,52 +869,103 @@ bool SkinnedMeshManager::ApplyDirectSwap(int slotIndex, const char* newPath,
 
     auto& slot = am->m_Clothes[slotIndex];
 
-    // 1. Reset the slot via the engine's own per-slot apply. This removes any
-    //    AttachBucket whose m_ClothingId == slotIndex (including a bucket we
-    //    inserted on a previous Apply) AND ref-drops the slot's existing Item*
-    //    in m_AssetRecords — without this, the original bag stays bound and
-    //    renders on top of ours. ApplyClothingId will overwrite m_Clothes[N].
-    //    m_Path with the engine's cached path; we re-write our own afterwards.
+    // Mirrors the engine's Character_SetClothingIdList (sub_162DD60) almost
+    // line-for-line, with our path injected between the per-slot reset and
+    // the dirty-flag commit so the consume pipeline picks up our model:
+    //
+    //   sub_162DD60 does:
+    //     1. m_ListUpdated = 1                       (set FIRST)
+    //     2. if (m_AssetRecords_Count == 0) sync(am) (sub_16083F0)
+    //     3. ApplyClothingId per id in list
+    //     4. copy new list into m_ClothingIdList
+    //     5. m_DirtyFlag = 1                         (set LAST)
+    //
+    //   We additionally:
+    //     • Snapshot the OLD path before reset and drop the old Item* from
+    //       m_AssetRecords ourselves. The engine's pipeline drops the old
+    //       Item* via the m_ClothingIdList "what changed" channel, but we
+    //       can't update that list cleanly without breaking other slots —
+    //       so we replicate the side-effect directly.
+    //     • Inject our path into m_Clothes[slotIndex].m_Path between steps
+    //       3 and 5, then call ModelLoadTrigger (sub_162FDA0) to insert the
+    //       attach bucket for it. The consume pass on the next frame loads
+    //       the model, the factory (sub_F48FE0) creates the new Item*, and
+    //       the slot ends up in the same end-state as a real in-game equip:
+    //       exactly one Item* in m_AssetRecords for that slot.
+
+    // 0. Snapshot the OLD path so we can drop the OLD Item* by path match.
+    char oldPath[260] = {};
+    ReadSnowdropStringAt(slot.m_Path.bytes, oldPath, sizeof(oldPath));
+
+    // 1. m_ListUpdated FIRST — matches sub_162DD60's ordering. The consume
+    //    pipeline checks both flags; setting ListUpdated before any state
+    //    mutation keeps the engine's invariant ("list is dirty") true the
+    //    entire time we're rewriting state.
+    am->m_ListUpdated = 1;
+
+    // 2. Sync gate — same condition as sub_162DD60: if no asset records exist
+    //    yet, run sync_character_clothing_and_accessories first. Sync clones
+    //    the current state into the staging arrays AND sets m_NeedsResync.
+    //    On a populated player this no-ops; on a freshly-loaded character it
+    //    seeds the staging arrays the consume pass needs.
+    bool syncCalled = false;
+    {
+        CountSnapshot pre = ReadCountsGuarded(am);
+        if (pre.ok && pre.recordCt == 0)
+            syncCalled = CallSyncGuarded(am);
+    }
+
+    // 3. Per-slot reset via engine API. Clears m_pSlot, clears m_Path to "",
+    //    and removes attach buckets where m_ClothingId == slotIndex.
     bool slotReset = CallApplyClothingIdGuarded(am, (std::uint32_t)slotIndex);
 
-    // 2. Suppress any stragglers (e.g. buckets ApplyClothingId didn't catch
-    //    because of the build's NULL +0x28 hashmap quirk). Cheap belt-and-
-    //    braces; sets m_ClothingId to a sentinel so per-slot processing
-    //    ignores them while leaving the hashmap key/hash intact.
+    // 3a. Belt-and-braces: disqualify any stragglers ApplyClothingId didn't
+    //     catch (the +0x28 hashmap quirk on this build can leave residue).
     int disqualified = DisqualifyBucketsForSlot(am, slotIndex);
 
-    // 3. Write our path. Re-read sstr because the engine reset above may have
+    // 3b. Drop any old Item* in m_AssetRecords matching the OLD path. The
+    //     engine's consume normally does this via m_ClothingIdList semantics;
+    //     we replicate the effect so the new Item* the factory creates next
+    //     frame ends up alongside no leftover bag.
+    int oldItemsRemoved = 0;
+    if (oldPath[0])
+    {
+        for (int safety = 0; safety < 8; ++safety)
+        {
+            int idx = FindAssetRecordByPath(am, oldPath);
+            if (idx < 0) break;
+            if (!RemoveAssetRecordAt(am, idx)) break;
+            ++oldItemsRemoved;
+        }
+    }
+
+    // 4. Inject our path. Re-read sstr because the reset above may have
     //    reallocated the heap buffer (its "writes cached path" step).
     BYTE* sstr = slot.m_Path.bytes;
     std::size_t newLen = std::strlen(newPath);
 
     // Two-path write strategy:
-    //   a) If the existing heap allocation has enough capacity, do a fast
+    //   a) Existing heap allocation has enough capacity → fast
     //      VirtualProtect + memcpy (no engine-side state changes).
-    //   b) Otherwise, hand off to the engine's own SnowdropString::assign
-    //      (sub_116830). That function reallocates with the engine's
-    //      allocator, so any later free by the engine is safe.
+    //   b) Otherwise → engine's own SnowdropString::assign (sub_116830),
+    //      which reallocates with the engine's allocator (allocator-correct
+    //      so any later free by the engine is safe).
     bool wroteOk = false;
     bool usedEngineAssign = false;
 
-    if (sstr[0x0F] != 0)   // heap-mode SnowdropString
+    if (sstr[0x0F] != 0)
     {
         char* heapStr = *(char**)sstr;
         if (heapStr)
         {
             std::uint32_t capacity = *(std::uint32_t*)(heapStr - 4);
             if (capacity > 0 && capacity <= 0x1000 && newLen + 1 <= capacity)
-            {
                 wroteOk = GuardedHeapWrite(heapStr, newPath, newLen, capacity);
-            }
         }
     }
 
     if (!wroteOk)
     {
-        // Fallback: let the engine grow / re-allocate the SnowdropString.
-        // Works for both heap-mode (cap-too-small) and inline-mode strings,
-        // and is the only allocator-correct way to grow the buffer.
         usedEngineAssign = CallStringAssignGuarded(&slot.m_Path, newPath);
         wroteOk = usedEngineAssign;
     }
@@ -904,27 +976,25 @@ bool SkinnedMeshManager::ApplyDirectSwap(int slotIndex, const char* newPath,
         return false;
     }
 
-    // 4. Insert a properly-keyed AttachBucket for our new path via the engine's
-    //    own model-load trigger. The engine's insert routes through sub_1544E60
-    //    (hashmap_insert), which keeps the hashmap key hash and entry array
-    //    consistent — unlike in-place m_ModelPath mutation.
+    // 5. Insert a properly-keyed AttachBucket for our new path via the engine's
+    //    own model-load trigger (sub_162FDA0 → sub_1544E60 hashmap_insert).
+    //    The bucket carries m_SlotName + m_ClothingId so the consume pipeline
+    //    knows which slot the loaded model belongs to.
     bool bucketInserted = CallModelLoadTriggerGuarded(am, &slot.m_Path,
                                                       (std::uint32_t)slotIndex);
 
-    // Trigger a visible re-render via the auto-clearing dirty flag only.
-    // Deliberately NOT touching m_ListUpdated / m_NeedsResync — those are the
-    // engine's stable change-pending flags and leaving them at 1 makes the next
-    // consumption pass re-enter against m_ClothingIdList (which doesn't contain
-    // our mod) and trashes the visual on the next outfit change.
+    // 5a. If sync didn't run above, set m_NeedsResync manually. Sync sets it;
+    //     when we skip sync the consume pass still wants the resync signal so
+    //     the visual fully refreshes.
+    if (!syncCalled) am->m_NeedsResync = 1;
+
+    // 6. m_DirtyFlag LAST — matches sub_162DD60. The engine's consume pass
+    //    on the next frame: reads dirty/listupdated → walks m_Clothes for
+    //    populated paths → loads model from our bucket → factory creates
+    //    the right Item subclass → pushes it into m_AssetRecords.
     am->m_DirtyFlag = 1;
 
-    // Register / reset per-slot mod tracking. On the next few Update() ticks,
-    // SoftRevertOnEngineActivity will snapshot the engine's count baselines
-    // and then watch for any change (equip/customize) — when that happens our
-    // bucket and Item*s are removed and the mod reverts.
-    //
-    // Also remember newPath in s_lastApplied so AutoReapplyOnDrift can re-do
-    // the Apply if the engine reverts and the user has the toggle on.
+    // Register / reset per-slot mod tracking (same as before).
     {
         auto& st = s_modState[slotIndex];
         st = {};
@@ -935,13 +1005,15 @@ bool SkinnedMeshManager::ApplyDirectSwap(int slotIndex, const char* newPath,
 
     if (errOut)
     {
-        char buf[220];
+        char buf[260];
         std::snprintf(buf, sizeof(buf),
-                      "ok (reset:%s, %s, %d disq, %s) — instant swap; reverts on next engine change",
-                      slotReset       ? "y" : "n",
-                      usedEngineAssign ? "engine assign" : "fast memcpy",
+                      "ok (reset:%s sync:%s old_items:%d disq:%d %s %s)",
+                      slotReset        ? "y" : "n",
+                      syncCalled       ? "y" : "skip",
+                      oldItemsRemoved,
                       disqualified,
-                      bucketInserted  ? "bucket+" : "bucket-FAIL");
+                      usedEngineAssign ? "engine-assign" : "fast-memcpy",
+                      bucketInserted   ? "bucket+"       : "bucket-FAIL");
         *errOut = buf;
     }
     return true;
@@ -995,9 +1067,11 @@ void SkinnedMeshManager::DrawUI()
     // Refresh on every draw — cheap, only walks 27 slots.
     ScanLiveSlots();
 
-    ImGui::TextWrapped("Skin Changer — direct in-place mutation of m_Clothes[N].m_Path "
-                       "via Agent->m_pAppearance. Visual reload may require re-equip / "
-                       "zone-change if setting m_DirtyFlag isn't enough on its own.");
+    ImGui::TextWrapped("Skin Changer — routes through the engine's full equip pipeline "
+                       "(SetClothingIdList ordering: ListUpdated → sync → ApplyClothingId "
+                       "→ drop old Item* → inject path → ModelLoadTrigger → DirtyFlag). "
+                       "The factory creates the new Item* on the next consume frame, so "
+                       "the swap should be 1:1 with an in-game equip.");
 
     // Live diagnostic — shows what the singleton chain is actually returning so
     // we can tell the difference between "engine has no player" and "scan logic

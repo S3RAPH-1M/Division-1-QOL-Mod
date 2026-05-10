@@ -60,11 +60,16 @@ public:
     void Update();                  // refresh m_slots; cheap per frame
     void DrawUI();
 
-    // Direct in-place mutation of m_Clothes[slotIndex].m_Path. Path-only:
-    // does not touch AttachBucket (corrupts hashmap key → bag UI crash) and
-    // does not poke m_DirtyFlag (triggers the full consumption pipeline,
-    // which binds our mod into m_AssetRecords and freezes the slot).
-    // Returns true on success and writes a diagnostic message into *errOut.
+    // Routes a slot swap through the engine's full equip pipeline so the
+    // result is 1:1 with an in-game equip (proper Item* in m_AssetRecords,
+    // old Item* dropped, model rebuilt by the factory). Mirrors
+    // sub_162DD60 (Character_SetClothingIdList): sets m_ListUpdated → optional
+    // sync (sub_16083F0) → ApplyClothingId reset → drops the old Item* by
+    // path match → injects our path → ModelLoadTrigger inserts the attach
+    // bucket → sets m_NeedsResync + m_DirtyFlag last. The engine's next
+    // consume frame loads the model and the item factory (sub_F48FE0)
+    // creates the new Item subclass.
+    // Returns true on success; writes a diagnostic into *errOut.
     static bool ApplyDirectSwap(int slotIndex, const char* newPath,
                                 std::string* errOut = nullptr);
 

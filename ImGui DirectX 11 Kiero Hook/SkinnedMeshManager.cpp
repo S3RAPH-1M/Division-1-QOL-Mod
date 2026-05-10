@@ -253,14 +253,14 @@ namespace
 
     struct BucketTarget
     {
-        char*         heapStr;
-        std::uint32_t cap;
+        char*                              heapStr;
+        std::uint32_t                      cap;
+        TD::AppearanceManager::AttachBucket* bucket;   // for clearing m_Initialized post-mutation
     };
 
-    // Walks m_AttachHashmap_Buckets and collects the heap-string pointers of
-    // every bucket whose m_ClothingId == slotId. The bucket's m_ModelPath is
-    // what the engine's mesh-loader actually consumes, so mutating it (in
-    // addition to m_Clothes[id].m_Path) is what triggers a real mesh swap.
+    // Walks m_AttachHashmap_Buckets and collects every bucket whose m_ClothingId
+    // matches slotId. Returns both the bucket's heap path-string (for mutation)
+    // and the bucket pointer (for invalidation flags).
     int FindAttachBucketsForSlot(TD::AppearanceManager* am, int slotId,
                                  BucketTarget* out, int maxOut)
     {
@@ -286,6 +286,7 @@ namespace
 
                 out[found].heapStr = heapStr;
                 out[found].cap     = cap;
+                out[found].bucket  = &b;
                 ++found;
             }
         }
@@ -294,6 +295,28 @@ namespace
             // return whatever we collected before the AV
         }
         return found;
+    }
+
+    // Calls the engine's AppearanceManager_ModelLoadTrigger (sub_162FDA0).
+    // Returns true if the call returned without crashing; *outResult holds the
+    // engine's return value (1 = new bucket inserted, 0 = bucket already exists).
+    bool CallModelLoadTriggerGuarded(TD::AppearanceManager* am,
+                                     TD::SnowdropString* path,
+                                     std::uint32_t slotId,
+                                     __int64* outResult)
+    {
+        typedef __int64 (__fastcall *PFN)(TD::AppearanceManager*, TD::SnowdropString*, std::uint32_t*);
+        PFN fn = (PFN)(g_pBase + 0x162FDA0);
+        *outResult = -1;
+        __try
+        {
+            *outResult = fn(am, path, &slotId);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return false;
+        }
+        return true;
     }
 }
 
@@ -391,11 +414,20 @@ bool SkinnedMeshManager::ApplyDirectSwap(int slotIndex, const char* newPath,
         return false;
     }
 
-    // ── ALSO mutate matching AttachBucket(s) in m_AttachHashmap. ─────────
-    // The slot's m_Path is a cached/displayed path; the engine's mesh-loader
-    // reads from the AttachBucket's m_ModelPath (keyed in the +0x18 hashmap).
-    // Without this step, mutation only re-binds textures (hue change) but
-    // doesn't swap the actual mesh geometry.
+    // ── ALSO mutate matching AttachBucket(s) m_ModelPath. ────────────────
+    // The slot's m_Path is a cached/displayed copy; the engine's mesh-loader
+    // reads from buckets in m_AttachHashmap. Mutating the bucket too gives
+    // the engine consistent state across path lookups (and produces visible
+    // texture rebinds on the next consumption pass).
+    //
+    // We deliberately do NOT call the engine's ModelLoadTrigger from here:
+    // injecting a fresh bucket leaves a stale OLD bucket behind, which the
+    // engine's normal in-game gear-change pipeline (Character_ApplyClothingId
+    // → bucket-remove-by-clothing-id) gets confused by, sometimes deleting
+    // the slot entirely. Until we have a safe bucket-remove path, stick with
+    // pure mutation. Visual mesh swap will require the user to re-equip in
+    // the in-game UI for the engine to fully reload — that's the original
+    // SkinnedMeshManager workflow and it's stable.
     BucketTarget targets[8];
     int nTargets = FindAttachBucketsForSlot(am, slotIndex, targets, 8);
     int bucketsMutated = 0;
@@ -407,20 +439,17 @@ bool SkinnedMeshManager::ApplyDirectSwap(int slotIndex, const char* newPath,
             ++bucketsMutated;
     }
 
-    // Nudge the engine to consume the change. These flags are verified to
-    // flip 0->1 when the engine itself pushes a clothing change; setting
-    // them ourselves may or may not trigger an in-place reload.
+    // Nudge the consumption flags. The engine clears m_DirtyFlag itself;
+    // m_ListUpdated and m_NeedsResync persist as "changes pending" markers.
     am->m_DirtyFlag    = 1;
     am->m_ListUpdated  = 1;
     am->m_NeedsResync  = 1;
 
-    // Surface bucket-mutation status as a non-fatal info message via errOut.
-    // Useful diagnostic when we get hue-change-without-mesh-swap.
     if (errOut)
     {
-        char buf[160];
+        char buf[200];
         std::snprintf(buf, sizeof(buf),
-                      "ok (slot path written; %d/%d AttachBucket(s) mutated%s)",
+                      "ok (slot path; %d/%d bucket(s) mutated%s) — re-equip in-game for full mesh swap",
                       bucketsMutated, nTargets,
                       bucketsTooSmall ? ", some bucket caps too small" : "");
         *errOut = buf;

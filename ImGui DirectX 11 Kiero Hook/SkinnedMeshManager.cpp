@@ -175,6 +175,11 @@ const char* SkinnedMeshManager::GearTypeName(GearType t)
 
 // ─── POD-only helpers (SEH allowed; no C++ destructors in scope) ────────────
 
+// Forward declaration: FindPlayerAgent is defined further down at file scope,
+// but the GatherDiagInfo helper inside the anonymous namespace below needs to
+// see it. Static is fine — same translation unit.
+static TD::Agent* FindPlayerAgent(TD::World* world, int* outFoundIdx);
+
 namespace
 {
     struct RawSlotInfo
@@ -187,6 +192,12 @@ namespace
 
     // Reads all 27 m_Clothes entries into a POD array. Returns false if the read
     // hit an access violation (player likely despawning) — caller treats as scan failure.
+    //
+    // NOTE: A slot is considered "populated" if it has a non-empty m_Path. We do
+    // NOT require slot.m_pSlot to be non-null — during in-game equipment /
+    // customization menus the engine briefly clears m_pSlot but the cached path
+    // stays intact, and we want the UI (and override drift detection) to keep
+    // working through that window.
     bool ReadAllSlotsGuarded(TD::AppearanceManager* am, RawSlotInfo* out)
     {
         std::memset(out, 0, sizeof(RawSlotInfo) * 27);
@@ -195,7 +206,6 @@ namespace
             for (int i = 0; i < 27; ++i)
             {
                 const auto& slot = am->m_Clothes[i];
-                if (!slot.m_pSlot) continue;
 
                 const BYTE* b = slot.m_Path.bytes;
                 bool isHeap = b[0x0F] != 0;
@@ -211,7 +221,11 @@ namespace
                     std::memcpy(out[i].path, heap, copy);
                     out[i].path[copy] = '\0';
                     out[i].cap   = cap;
-                    out[i].valid = (out[i].path[0] != '\0');
+                    // Mark as valid/mutatable as long as we have a heap allocation,
+                    // even if the engine has NUL'd the first byte (Character_ApplyClothingId
+                    // does that to "clear" a slot — the allocation survives so we can
+                    // write our own path back into it).
+                    out[i].valid = true;
                 }
                 else
                 {
@@ -251,66 +265,55 @@ namespace
         return ok;
     }
 
-    struct BucketTarget
+    // Walks m_AttachHashmap_Buckets and rewrites m_ClothingId on every bucket
+    // matching slotId, replacing it with a sentinel value that the engine's
+    // per-slot processing won't match. Used to suppress the original bag's
+    // bucket before we insert our own — without this both Item*s end up in
+    // m_AssetRecords and both meshes render ("two bags" symptom).
+    //
+    // We deliberately do NOT mutate m_ModelPath or remove the bucket from the
+    // hashmap. m_ClothingId is at offset 0x3C, outside the hashmap key, so the
+    // entry's hash stays valid and later lookups / inserts / Character_ApplyClothingId
+    // removals still operate correctly. The disqualified bucket leaks (lives on
+    // until character despawn), which is acceptable.
+    constexpr std::uint32_t kClothingIdSuppressed = 0xFFFFFFFFu;
+    int DisqualifyBucketsForSlot(TD::AppearanceManager* am, int slotId)
     {
-        char*                              heapStr;
-        std::uint32_t                      cap;
-        TD::AppearanceManager::AttachBucket* bucket;   // for clearing m_Initialized post-mutation
-    };
-
-    // Walks m_AttachHashmap_Buckets and collects every bucket whose m_ClothingId
-    // matches slotId. Returns both the bucket's heap path-string (for mutation)
-    // and the bucket pointer (for invalidation flags).
-    int FindAttachBucketsForSlot(TD::AppearanceManager* am, int slotId,
-                                 BucketTarget* out, int maxOut)
-    {
-        int found = 0;
+        int n = 0;
         __try
         {
             auto* buckets = am->m_AttachHashmap_Buckets;
             int count = am->m_AttachHashmap_Count;
             if (!buckets || count <= 0) return 0;
 
-            for (int i = 0; i < count && found < maxOut; ++i)
+            for (int i = 0; i < count; ++i)
             {
-                auto& b = buckets[i];
-                if (b.m_ClothingId != slotId) continue;
-
-                const BYTE* sstr = b.m_ModelPath.bytes;
-                if (sstr[0x0F] == 0) continue;             // inline string — skip
-                char* heapStr = *(char**)sstr;
-                if (!heapStr) continue;
-
-                std::uint32_t cap = *(const std::uint32_t*)(heapStr - 4);
-                if (cap == 0 || cap > 0x1000) continue;
-
-                out[found].heapStr = heapStr;
-                out[found].cap     = cap;
-                out[found].bucket  = &b;
-                ++found;
+                if (buckets[i].m_ClothingId == (std::uint32_t)slotId)
+                {
+                    buckets[i].m_ClothingId = kClothingIdSuppressed;
+                    ++n;
+                }
             }
         }
         __except (EXCEPTION_EXECUTE_HANDLER)
         {
-            // return whatever we collected before the AV
+            // return whatever we got before the AV
         }
-        return found;
+        return n;
     }
 
-    // Calls the engine's AppearanceManager_ModelLoadTrigger (sub_162FDA0).
-    // Returns true if the call returned without crashing; *outResult holds the
-    // engine's return value (1 = new bucket inserted, 0 = bucket already exists).
-    bool CallModelLoadTriggerGuarded(TD::AppearanceManager* am,
-                                     TD::SnowdropString* path,
-                                     std::uint32_t slotId,
-                                     __int64* outResult)
+    // Engine's per-slot reset / "apply clothing id" (sub_16679B0). Removes
+    // stale AttachBuckets where m_ClothingId == id and ref-drops any Item*
+    // currently bound to that slot in m_AssetRecords. Used as a clean reset
+    // before we install our own bucket — without it, the original bag's
+    // Item* stays in m_AssetRecords and renders alongside ours ("two bags").
+    bool CallApplyClothingIdGuarded(TD::AppearanceManager* am, std::uint32_t slotId)
     {
-        typedef __int64 (__fastcall *PFN)(TD::AppearanceManager*, TD::SnowdropString*, std::uint32_t*);
-        PFN fn = (PFN)(g_pBase + 0x162FDA0);
-        *outResult = -1;
+        typedef __int64 (__fastcall *PFN)(TD::AppearanceManager*, std::uint32_t*);
+        PFN fn = (PFN)(g_pBase + 0x16679B0);
         __try
         {
-            *outResult = fn(am, path, &slotId);
+            fn(am, &slotId);
         }
         __except (EXCEPTION_EXECUTE_HANDLER)
         {
@@ -318,9 +321,111 @@ namespace
         }
         return true;
     }
+
+    // Engine's "model load trigger" (sub_162FDA0). Properly inserts a new
+    // AttachBucket into m_AttachHashmap via sub_1544E60, with m_SlotName /
+    // m_ClothingId filled in. Using the engine's insert keeps the hashmap key
+    // hash and the entry array consistent (in-place mutation of an existing
+    // bucket's m_ModelPath corrupts the key hash and crashes the in-game UI
+    // when it later tries to remove or look up the bucket).
+    bool CallModelLoadTriggerGuarded(TD::AppearanceManager* am,
+                                     TD::SnowdropString* path,
+                                     std::uint32_t slotId)
+    {
+        typedef __int64 (__fastcall *PFN)(TD::AppearanceManager*, TD::SnowdropString*, std::uint32_t*);
+        PFN fn = (PFN)(g_pBase + 0x162FDA0);
+        __try
+        {
+            fn(am, path, &slotId);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return false;
+        }
+        return true;
+    }
+
+    // Engine's SnowdropString assign function (sub_116830). Reallocates the
+    // string's heap buffer if the new content is longer than the existing
+    // capacity, using the engine's own allocator — which is the only safe way
+    // to grow a SnowdropString without a free-time allocator-mismatch crash.
+    // Used as the fallback when the new path doesn't fit in the current cap.
+    bool CallStringAssignGuarded(TD::SnowdropString* str, const char* newPath)
+    {
+        typedef void (__fastcall *PFN)(TD::SnowdropString*, const char*);
+        PFN fn = (PFN)(g_pBase + 0x116830);
+        __try
+        {
+            fn(str, newPath);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return false;
+        }
+        return true;
+    }
+
+    // POD-only diagnostic snapshot. SEH-guarded reads of agent fields live here
+    // so DrawUI doesn't have to host __try (it has C++ destructors all over).
+    struct DiagInfo
+    {
+        int                    agentCount;
+        int                    playerIdx;
+        TD::Agent*             player;
+        int                    playerType;
+        TD::AppearanceManager* am;
+    };
+
+    void GatherDiagInfo(DiagInfo* out)
+    {
+        out->agentCount = 0;
+        out->playerIdx  = -1;
+        out->player     = nullptr;
+        out->playerType = -1;
+        out->am         = nullptr;
+
+        auto* rc = TD::RogueClient::Singleton();
+        if (!rc) return;
+        auto* client = rc->m_pClient;
+        if (!client) return;
+        auto* world = client->m_pWorld;
+        if (!world || !world->m_AgentArray) return;
+
+        out->agentCount = world->m_AgentCount;
+        out->player     = FindPlayerAgent(world, &out->playerIdx);
+        if (!out->player) return;
+
+        __try { out->playerType = *(int*)((__int64)out->player + 0x3A4); }
+        __except (EXCEPTION_EXECUTE_HANDLER) { out->playerType = -2; }
+
+        out->am = out->player->m_pAppearance;
+    }
+
 }
 
 // ─── live slot scanning ──────────────────────────────────────────────────────
+
+// Locates the player Agent by walking m_AgentArray and matching EntityType==1.
+// During in-game customization/equipment menus the engine can shuffle agent
+// indices (or temporarily despawn the player), so we can't rely on Agent[0].
+// Falls back to Agent[0] only if no EntityType==1 agent is found.
+static TD::Agent* FindPlayerAgent(TD::World* world, int* outFoundIdx)
+{
+    if (outFoundIdx) *outFoundIdx = -1;
+    if (!world || !world->m_AgentArray || world->m_AgentCount <= 0) return nullptr;
+
+    for (int i = 0; i < world->m_AgentCount; ++i)
+    {
+        auto* a = world->m_AgentArray[i];
+        if (!a) continue;
+        int type = 0;
+        __try { type = *(int*)((__int64)a + 0x3A4); }
+        __except (EXCEPTION_EXECUTE_HANDLER) { continue; }
+        if (type == 1) { if (outFoundIdx) *outFoundIdx = i; return a; }
+    }
+    // Fallback — slot 0 even if not type 1 (caller decides if they want it)
+    return world->m_AgentArray[0];
+}
 
 static TD::AppearanceManager* GetPlayerAppearance(std::string* errOut)
 {
@@ -333,10 +438,25 @@ static TD::AppearanceManager* GetPlayerAppearance(std::string* errOut)
     if (!world->m_AgentArray || world->m_AgentCount <= 0)
                  { if (errOut) *errOut = "agent array empty";        return nullptr; }
 
-    auto* player = world->m_AgentArray[0];
-    if (!player) { if (errOut) *errOut = "player agent null";        return nullptr; }
-    int type = *(int*)((__int64)player + 0x3A4);
-    if (type != 1) { if (errOut) *errOut = "agent[0] is not player"; return nullptr; }
+    int playerIdx = -1;
+    TD::Agent* player = FindPlayerAgent(world, &playerIdx);
+    if (!player) { if (errOut) *errOut = "no agents in array";       return nullptr; }
+    int type = 0;
+    __try { type = *(int*)((__int64)player + 0x3A4); }
+    __except (EXCEPTION_EXECUTE_HANDLER) { type = 0; }
+
+    if (type != 1)
+    {
+        if (errOut)
+        {
+            char buf[160];
+            std::snprintf(buf, sizeof(buf),
+                          "no player (type=1) found in %d agents (agent[0].type=%d)",
+                          world->m_AgentCount, type);
+            *errOut = buf;
+        }
+        return nullptr;
+    }
 
     auto* am = player->m_pAppearance;
     if (!am)     { if (errOut) *errOut = "AppearanceManager null";   return nullptr; }
@@ -345,31 +465,88 @@ static TD::AppearanceManager* GetPlayerAppearance(std::string* errOut)
 
 void SkinnedMeshManager::ScanLiveSlots()
 {
-    m_slots.clear();
-    m_scanError.clear();
+    // The engine's character/customization menu briefly nulls every slot's
+    // m_pSlot while it swaps in a preview character. Naïve scan during that
+    // window shows "no populated slots" and looks like everything got
+    // destroyed. Strategy: only replace m_slots when we get a populated
+    // result. If the scan comes back empty, keep the previous (now stale)
+    // m_slots for up to ~5 seconds before giving up.
+    //
+    // Counter is a function-local static so we don't depend on whether
+    // any specific class field is visible to the precompiled header.
+    static int s_emptyScans = 0;
+    constexpr int kMaxEmptyScansBeforeGiveUp = 300;   // ~5s @ 60 fps
 
-    TD::AppearanceManager* am = GetPlayerAppearance(&m_scanError);
-    if (!am) return;
+    std::string thisScanError;
+    TD::AppearanceManager* am = GetPlayerAppearance(&thisScanError);
+    if (!am)
+    {
+        ++s_emptyScans;
+        if (s_emptyScans > kMaxEmptyScansBeforeGiveUp)
+        {
+            m_slots.clear();
+            m_scanError = thisScanError;
+        }
+        else if (!m_slots.empty())
+        {
+            m_scanError = "(showing last good scan — " + thisScanError + ")";
+        }
+        return;
+    }
 
     RawSlotInfo raw[27];
     if (!ReadAllSlotsGuarded(am, raw))
     {
-        m_scanError = "exception while reading slot table (player likely despawning)";
+        ++s_emptyScans;
+        if (s_emptyScans > kMaxEmptyScansBeforeGiveUp)
+        {
+            m_slots.clear();
+            m_scanError = "exception while reading slot table (player despawning)";
+        }
+        else if (!m_slots.empty())
+        {
+            m_scanError = "(showing last good scan — read AV)";
+        }
         return;
     }
 
+    std::vector<LiveSlot> newSlots;
     for (int i = 0; i < 27; ++i)
     {
         if (!raw[i].valid) continue;
-
         LiveSlot ls;
         ls.index       = i;
         ls.type        = ClassifyPath(raw[i].path);
         ls.currentPath = raw[i].path;
         ls.capacity    = raw[i].cap;
         ls.canMutate   = raw[i].isHeap && raw[i].cap > 0;
-        m_slots.push_back(std::move(ls));
+        newSlots.push_back(std::move(ls));
     }
+
+    if (newSlots.empty())
+    {
+        // Transient: engine is mid-equip / in customization preview.
+        ++s_emptyScans;
+        if (s_emptyScans > kMaxEmptyScansBeforeGiveUp)
+        {
+            m_slots.clear();
+            m_scanError = "no populated slots";
+        }
+        else if (!m_slots.empty())
+        {
+            m_scanError = "(showing last good scan — engine mid-update)";
+        }
+        else
+        {
+            m_scanError = "no populated slots";
+        }
+        return;
+    }
+
+    // Got a fresh populated scan — replace cache, clear transient counter.
+    m_slots      = std::move(newSlots);
+    m_scanError.clear();
+    s_emptyScans = 0;
 }
 
 // ─── direct in-place mutation ────────────────────────────────────────────────
@@ -384,77 +561,88 @@ bool SkinnedMeshManager::ApplyDirectSwap(int slotIndex, const char* newPath,
     if (!am) return false;
 
     auto& slot = am->m_Clothes[slotIndex];
-    if (!slot.m_pSlot) { if (errOut) *errOut = "slot not populated"; return false; }
 
+    // 1. Reset the slot via the engine's own per-slot apply. This removes any
+    //    AttachBucket whose m_ClothingId == slotIndex (including a bucket we
+    //    inserted on a previous Apply) AND ref-drops the slot's existing Item*
+    //    in m_AssetRecords — without this, the original bag stays bound and
+    //    renders on top of ours. ApplyClothingId will overwrite m_Clothes[N].
+    //    m_Path with the engine's cached path; we re-write our own afterwards.
+    bool slotReset = CallApplyClothingIdGuarded(am, (std::uint32_t)slotIndex);
+
+    // 2. Suppress any stragglers (e.g. buckets ApplyClothingId didn't catch
+    //    because of the build's NULL +0x28 hashmap quirk). Cheap belt-and-
+    //    braces; sets m_ClothingId to a sentinel so per-slot processing
+    //    ignores them while leaving the hashmap key/hash intact.
+    int disqualified = DisqualifyBucketsForSlot(am, slotIndex);
+
+    // 3. Write our path. Re-read sstr because the engine reset above may have
+    //    reallocated the heap buffer (its "writes cached path" step).
     BYTE* sstr = slot.m_Path.bytes;
-    bool isHeap = sstr[0x0F] != 0;
-    if (!isHeap) { if (errOut) *errOut = "path is inline (heap conversion not implemented)"; return false; }
-
-    char* heapStr = *(char**)sstr;
-    if (!heapStr) { if (errOut) *errOut = "heap pointer null"; return false; }
-
-    std::uint32_t capacity = *(std::uint32_t*)(heapStr - 4);
-    if (capacity == 0 || capacity > 0x1000) { if (errOut) *errOut = "capacity sanity check failed"; return false; }
-
     std::size_t newLen = std::strlen(newPath);
-    if (newLen + 1 > capacity)
+
+    // Two-path write strategy:
+    //   a) If the existing heap allocation has enough capacity, do a fast
+    //      VirtualProtect + memcpy (no engine-side state changes).
+    //   b) Otherwise, hand off to the engine's own SnowdropString::assign
+    //      (sub_116830). That function reallocates with the engine's
+    //      allocator, so any later free by the engine is safe.
+    bool wroteOk = false;
+    bool usedEngineAssign = false;
+
+    if (sstr[0x0F] != 0)   // heap-mode SnowdropString
     {
-        if (errOut)
+        char* heapStr = *(char**)sstr;
+        if (heapStr)
         {
-            char buf[128];
-            std::snprintf(buf, sizeof(buf), "new path too long: %zu+1 > %u", newLen, capacity);
-            *errOut = buf;
+            std::uint32_t capacity = *(std::uint32_t*)(heapStr - 4);
+            if (capacity > 0 && capacity <= 0x1000 && newLen + 1 <= capacity)
+            {
+                wroteOk = GuardedHeapWrite(heapStr, newPath, newLen, capacity);
+            }
         }
+    }
+
+    if (!wroteOk)
+    {
+        // Fallback: let the engine grow / re-allocate the SnowdropString.
+        // Works for both heap-mode (cap-too-small) and inline-mode strings,
+        // and is the only allocator-correct way to grow the buffer.
+        usedEngineAssign = CallStringAssignGuarded(&slot.m_Path, newPath);
+        wroteOk = usedEngineAssign;
+    }
+
+    if (!wroteOk)
+    {
+        if (errOut) *errOut = "path write failed (both fast-path and engine assign)";
         return false;
     }
 
-    if (!GuardedHeapWrite(heapStr, newPath, newLen, capacity))
-    {
-        if (errOut) *errOut = "VirtualProtect/memcpy failed";
-        return false;
-    }
+    // 4. Insert a properly-keyed AttachBucket for our new path via the engine's
+    //    own model-load trigger. The engine's insert routes through sub_1544E60
+    //    (hashmap_insert), which keeps the hashmap key hash and entry array
+    //    consistent — unlike in-place m_ModelPath mutation.
+    bool bucketInserted = CallModelLoadTriggerGuarded(am, &slot.m_Path,
+                                                      (std::uint32_t)slotIndex);
 
-    // ── ALSO mutate matching AttachBucket(s) m_ModelPath. ────────────────
-    // The slot's m_Path is a cached/displayed copy; the engine's mesh-loader
-    // reads from buckets in m_AttachHashmap. Mutating the bucket too gives
-    // the engine consistent state across path lookups (and produces visible
-    // texture rebinds on the next consumption pass).
-    //
-    // We deliberately do NOT call the engine's ModelLoadTrigger from here:
-    // injecting a fresh bucket leaves a stale OLD bucket behind, which the
-    // engine's normal in-game gear-change pipeline (Character_ApplyClothingId
-    // → bucket-remove-by-clothing-id) gets confused by, sometimes deleting
-    // the slot entirely. Until we have a safe bucket-remove path, stick with
-    // pure mutation. Visual mesh swap will require the user to re-equip in
-    // the in-game UI for the engine to fully reload — that's the original
-    // SkinnedMeshManager workflow and it's stable.
-    BucketTarget targets[8];
-    int nTargets = FindAttachBucketsForSlot(am, slotIndex, targets, 8);
-    int bucketsMutated = 0;
-    int bucketsTooSmall = 0;
-    for (int i = 0; i < nTargets; ++i)
-    {
-        if (newLen + 1 > targets[i].cap) { ++bucketsTooSmall; continue; }
-        if (GuardedHeapWrite(targets[i].heapStr, newPath, newLen, targets[i].cap))
-            ++bucketsMutated;
-    }
-
-    // Nudge the consumption flags. The engine clears m_DirtyFlag itself;
-    // m_ListUpdated and m_NeedsResync persist as "changes pending" markers.
-    am->m_DirtyFlag    = 1;
-    am->m_ListUpdated  = 1;
-    am->m_NeedsResync  = 1;
+    // Trigger a visible re-render via the auto-clearing dirty flag only.
+    // Deliberately NOT touching m_ListUpdated / m_NeedsResync — those are the
+    // engine's stable change-pending flags and leaving them at 1 makes the next
+    // consumption pass re-enter against m_ClothingIdList (which doesn't contain
+    // our mod) and trashes the visual on the next outfit change.
+    am->m_DirtyFlag = 1;
 
     if (errOut)
     {
-        char buf[200];
+        char buf[220];
         std::snprintf(buf, sizeof(buf),
-                      "ok (slot path; %d/%d bucket(s) mutated%s) — re-equip in-game for full mesh swap",
-                      bucketsMutated, nTargets,
-                      bucketsTooSmall ? ", some bucket caps too small" : "");
+                      "ok (reset:%s, %s, %d disq, %s) — instant swap",
+                      slotReset       ? "y" : "n",
+                      usedEngineAssign ? "engine assign" : "fast memcpy",
+                      disqualified,
+                      bucketInserted  ? "bucket+" : "bucket-FAIL");
         *errOut = buf;
     }
-
     return true;
 }
 
@@ -497,8 +685,8 @@ struct SlotUIState
 static SlotUIState& UIStateForSlot(int slotIndex)
 {
     static SlotUIState s_states[27];
-    if (slotIndex < 0 || slotIndex >= 27) return s_states[0];
-    return s_states[slotIndex];
+    int idx = (slotIndex < 0 || slotIndex >= 27) ? 0 : slotIndex;
+    return s_states[idx];
 }
 
 void SkinnedMeshManager::DrawUI()
@@ -510,12 +698,30 @@ void SkinnedMeshManager::DrawUI()
                        "via Agent->m_pAppearance. Visual reload may require re-equip / "
                        "zone-change if setting m_DirtyFlag isn't enough on its own.");
 
+    // Live diagnostic — shows what the singleton chain is actually returning so
+    // we can tell the difference between "engine has no player" and "scan logic
+    // bug" when slots vanish. Reads happen in a POD-only helper (DiagInfo) so
+    // the SEH guard around the agent-type read doesn't conflict with C++ object
+    // unwinding in this function.
+    {
+        DiagInfo di;
+        GatherDiagInfo(&di);
+        ImGui::TextDisabled(
+            "[diag] agents=%d  player_idx=%d  player=0x%p  type=%d  AM=0x%p",
+            di.agentCount, di.playerIdx, (void*)di.player, di.playerType, (void*)di.am);
+    }
+
+    // Show error/transient banner if any, but don't bail out — the slot list
+    // below is rendered from m_slots which may be stale-but-valid during the
+    // engine's customization-menu preview window.
     if (!m_scanError.empty())
     {
-        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 100, 100, 255));
-        ImGui::Text("Scan error: %s", m_scanError.c_str());
+        bool isTransient = m_scanError.find("last good scan") != std::string::npos;
+        ImVec4 col = isTransient ? ImVec4(1.0f, 0.85f, 0.2f, 1.0f)
+                                 : ImVec4(1.0f, 0.40f, 0.40f, 1.0f);
+        ImGui::PushStyleColor(ImGuiCol_Text, col);
+        ImGui::Text("%s", m_scanError.c_str());
         ImGui::PopStyleColor();
-        return;
     }
 
     if (m_slots.empty())
@@ -538,7 +744,10 @@ void SkinnedMeshManager::DrawUI()
                             (unsigned)ls.capacity,
                             ls.canMutate ? "mutable" : "INLINE/locked");
 
-        ImGui::TextWrapped("Current: %s", ls.currentPath.c_str());
+        if (ls.currentPath.empty())
+            ImGui::TextDisabled("Current: (engine cleared — heap allocation reserved, can still write)");
+        else
+            ImGui::TextWrapped("Current: %s", ls.currentPath.c_str());
 
         if (!ls.canMutate)
         {
@@ -577,7 +786,6 @@ void SkinnedMeshManager::DrawUI()
         ImGui::InputText("custom##path", ui.custom, sizeof(ui.custom));
         ImGui::PopItemWidth();
 
-        ImGui::SameLine();
         if (ImGui::Button("Apply"))
         {
             const char* target = nullptr;
@@ -596,16 +804,10 @@ void SkinnedMeshManager::DrawUI()
                 std::string err;
                 bool ok = ApplyDirectSwap(ls.index, target, &err);
                 ui.lastOk = ok;
-                if (ok)
-                {
-                    ui.lastResult = err.empty()
-                                    ? (std::string("ok — wrote: ") + target)
-                                    : (err + " — " + target);
-                }
-                else
-                {
-                    ui.lastResult = std::string("failed: ") + err;
-                }
+                ui.lastResult = ok
+                    ? (err.empty() ? (std::string("ok — wrote: ") + target)
+                                   : (err + " — " + target))
+                    : (std::string("failed: ") + err);
             }
         }
 

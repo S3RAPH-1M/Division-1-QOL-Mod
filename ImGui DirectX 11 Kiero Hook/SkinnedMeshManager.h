@@ -57,16 +57,14 @@ public:
     SkinnedMeshManager();
     ~SkinnedMeshManager();
 
-    void Update();                  // refresh m_slots; cheap to call every frame
+    void Update();                  // refresh m_slots; cheap per frame
     void DrawUI();
 
-    // Direct in-place mutation of m_Clothes[slotIndex].m_Path.
-    //   slotIndex   : 0..26 (must be a populated slot per ScanLiveSlots)
-    //   newPath     : null-terminated UTF-8 model path
-    //   errOut      : optional human-readable failure reason
-    // Returns true on success. After success, sets m_DirtyFlag / m_ListUpdated /
-    // m_NeedsResync on the AppearanceManager. Visual reload may still require
-    // re-equip or zone-change depending on the engine's consumption pipeline.
+    // Direct in-place mutation of m_Clothes[slotIndex].m_Path. Path-only:
+    // does not touch AttachBucket (corrupts hashmap key → bag UI crash) and
+    // does not poke m_DirtyFlag (triggers the full consumption pipeline,
+    // which binds our mod into m_AssetRecords and freezes the slot).
+    // Returns true on success and writes a diagnostic message into *errOut.
     static bool ApplyDirectSwap(int slotIndex, const char* newPath,
                                 std::string* errOut = nullptr);
 
@@ -75,10 +73,9 @@ public:
 
 private:
     void ScanLiveSlots();
-    void DrawSlotGroup(GearType type, const ModelSwapEntry* models, int modelCount);
 
-    std::vector<LiveSlot> m_slots;
-    std::string           m_scanError;     // empty if last scan was clean
+    std::vector<LiveSlot>     m_slots;
+    std::string               m_scanError;     // empty if last scan was clean
 
 public:
     SkinnedMeshManager(SkinnedMeshManager const&) = delete;

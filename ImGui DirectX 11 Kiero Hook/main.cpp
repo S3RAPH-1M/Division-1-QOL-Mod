@@ -123,6 +123,7 @@ void Update(void) {
 	g_mainHandle->GetCameraManager()->Update();
 	g_mainHandle->GetVisualManager()->Update();
 	g_mainHandle->GetHeadManager()->Update();
+	g_mainHandle->GetSkinnedMeshManager()->Update();
 }
 
 
@@ -440,7 +441,7 @@ void Console(bool enable)
 // Returns TRUE when the hook is successfully set.
 DWORD WINAPI MainThread(LPVOID lpReserved)
 {
-	Console(true);
+	Console(false);
 	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 
 

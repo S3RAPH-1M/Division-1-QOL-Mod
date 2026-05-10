@@ -742,10 +742,10 @@ void SkinnedMeshManager::AutoReapplyOnDrift()
 {
     if (!g_autoReapply) return;
 
-    // Throttle to ~0.5s. ImGui::GetTime is just the display-frame clock, but
+    // Throttle to ~0.1s. ImGui::GetTime is just the display-frame clock, but
     // it's monotonic and cheap, so it's fine for this.
     double now = ImGui::GetTime();
-    if (now - s_lastReapplyCheck < 0.5) return;
+    if (now - s_lastReapplyCheck < 0.1) return;
     s_lastReapplyCheck = now;
 
     for (int slotIdx = 0; slotIdx < 27; ++slotIdx)
@@ -1089,11 +1089,11 @@ void SkinnedMeshManager::DrawUI()
     // Auto re-apply controls. Drift-only: if the slot's current path already
     // matches what we last applied, this pass leaves it alone — only the
     // slots the engine has reverted get re-Applied.
-    ImGui::Checkbox("Auto re-apply every 0.5s on drift", &g_autoReapply);
+    ImGui::Checkbox("Auto re-apply every 0.1s on drift", &g_autoReapply);
     if (ImGui::IsItemHovered())
     {
         ImGui::SetTooltip(
-            "Polls each slot every ~0.5s. If a slot's path no longer matches\n"
+            "Polls each slot every ~0.1s. If a slot's path no longer matches\n"
             "the last mod you applied (e.g. the engine just reverted it after\n"
             "you equipped or customized something), re-runs Apply for that slot.\n"
             "Slots that are already matching are left untouched.");

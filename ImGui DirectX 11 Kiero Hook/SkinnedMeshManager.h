@@ -74,6 +74,7 @@ public:
 private:
     void ScanLiveSlots();
     void SoftRevertOnEngineActivity();
+    void AutoReapplyOnDrift();
 
     std::vector<LiveSlot>     m_slots;
     std::string               m_scanError;     // empty if last scan was clean

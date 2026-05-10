@@ -98,12 +98,21 @@ namespace
     static SlotModState s_modState[27];
 
     constexpr int kSettleFramesBeforeBaseline = 4;
+
+    // Auto-reapply state. g_autoReapply gates the whole feature; s_lastApplied
+    // stores the most-recently-applied mod path per slot so we can re-do the
+    // Apply if the engine reverts our mutation. Throttled to ~0.5s with a
+    // single global timer (one check sweeps all slots).
+    static bool        g_autoReapply       = false;
+    static std::string s_lastApplied[27];
+    static double      s_lastReapplyCheck  = 0.0;
 }
 
 void SkinnedMeshManager::Update()
 {
     ScanLiveSlots();
     SoftRevertOnEngineActivity();
+    AutoReapplyOnDrift();
 }
 
 // SoftRevertOnEngineActivity is defined after GetPlayerAppearance and the
@@ -708,6 +717,38 @@ void SkinnedMeshManager::SoftRevertOnEngineActivity()
     }
 }
 
+void SkinnedMeshManager::AutoReapplyOnDrift()
+{
+    if (!g_autoReapply) return;
+
+    // Throttle to ~0.5s. ImGui::GetTime is just the display-frame clock, but
+    // it's monotonic and cheap, so it's fine for this.
+    double now = ImGui::GetTime();
+    if (now - s_lastReapplyCheck < 0.5) return;
+    s_lastReapplyCheck = now;
+
+    for (int slotIdx = 0; slotIdx < 27; ++slotIdx)
+    {
+        const std::string& want = s_lastApplied[slotIdx];
+        if (want.empty()) continue;
+
+        // Look up current path from the live slot scan.
+        const LiveSlot* live = nullptr;
+        for (const auto& ls : m_slots)
+            if (ls.index == slotIdx) { live = &ls; break; }
+        if (!live) continue;
+
+        // No drift → don't disturb. The whole point of this pass is to fix up
+        // what the engine has reverted, not to keep poking healthy state.
+        if (live->currentPath == want) continue;
+
+        // Drifted: re-apply. ApplyDirectSwap re-installs everything (path,
+        // bucket, dirty flag) and re-arms the SoftRevert tracking for the
+        // next engine event.
+        ApplyDirectSwap(slotIdx, want.c_str(), nullptr);
+    }
+}
+
 void SkinnedMeshManager::ScanLiveSlots()
 {
     // The engine's character/customization menu briefly nulls every slot's
@@ -878,14 +919,18 @@ bool SkinnedMeshManager::ApplyDirectSwap(int slotIndex, const char* newPath,
     am->m_DirtyFlag = 1;
 
     // Register / reset per-slot mod tracking. On the next few Update() ticks,
-    // SoftRevertOnEngineActivity will resolve our Item* in m_AssetRecords and
-    // then watch for the engine adding any further Item* (equip/customize) —
-    // when that happens, our Item* is removed and the mod reverts.
+    // SoftRevertOnEngineActivity will snapshot the engine's count baselines
+    // and then watch for any change (equip/customize) — when that happens our
+    // bucket and Item*s are removed and the mod reverts.
+    //
+    // Also remember newPath in s_lastApplied so AutoReapplyOnDrift can re-do
+    // the Apply if the engine reverts and the user has the toggle on.
     {
         auto& st = s_modState[slotIndex];
         st = {};
         st.active  = true;
         st.modPath = newPath;
+        s_lastApplied[slotIndex] = newPath;
     }
 
     if (errOut)
@@ -966,6 +1011,26 @@ void SkinnedMeshManager::DrawUI()
             "[diag] agents=%d  player_idx=%d  player=0x%p  type=%d  AM=0x%p",
             di.agentCount, di.playerIdx, (void*)di.player, di.playerType, (void*)di.am);
     }
+
+    // Auto re-apply controls. Drift-only: if the slot's current path already
+    // matches what we last applied, this pass leaves it alone — only the
+    // slots the engine has reverted get re-Applied.
+    ImGui::Checkbox("Auto re-apply every 0.5s on drift", &g_autoReapply);
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip(
+            "Polls each slot every ~0.5s. If a slot's path no longer matches\n"
+            "the last mod you applied (e.g. the engine just reverted it after\n"
+            "you equipped or customized something), re-runs Apply for that slot.\n"
+            "Slots that are already matching are left untouched.");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Forget all"))
+    {
+        for (int i = 0; i < 27; ++i) s_lastApplied[i].clear();
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Clears the saved last-applied paths so auto re-apply has nothing to restore.");
 
     // Show error/transient banner if any, but don't bail out — the slot list
     // below is rendered from m_slots which may be stale-but-valid during the

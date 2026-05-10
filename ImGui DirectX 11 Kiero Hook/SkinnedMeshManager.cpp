@@ -75,10 +75,40 @@ static const ModelList s_gasMaskModels    = { nullptr, 0 };
 SkinnedMeshManager::SkinnedMeshManager() = default;
 SkinnedMeshManager::~SkinnedMeshManager() = default;
 
+// ─── per-slot mod tracking (for soft-replacement / auto-revert) ──────────────
+
+namespace
+{
+    // Soft-replacement tracking. Apply mutates engine state (writes path,
+    // inserts a bucket, pokes m_DirtyFlag). After consumption settles a frame
+    // or two later, we snapshot m_AttachHashmap_Count and m_AssetRecords_Count
+    // as the "stable baseline." Any subsequent change to either count means
+    // the engine has done something on its own (user equipped / modified
+    // anything), so we proactively undo our mutations: remove our injected
+    // AttachBucket via the engine's own hashmap_remove, and walk m_AssetRecords
+    // to drop any Item* whose asset paths still reference our mod path.
+    struct SlotModState
+    {
+        bool         active           = false;
+        std::string  modPath;
+        int          settleFrames     = 0;     // wait a few frames for engine consumption
+        int          baselineHashCt   = -1;
+        int          baselineRecordCt = -1;
+    };
+    static SlotModState s_modState[27];
+
+    constexpr int kSettleFramesBeforeBaseline = 4;
+}
+
 void SkinnedMeshManager::Update()
 {
     ScanLiveSlots();
+    SoftRevertOnEngineActivity();
 }
+
+// SoftRevertOnEngineActivity is defined after GetPlayerAppearance and the
+// POD-helper namespace below — it depends on both, so the body has to live
+// further down in the translation unit.
 
 // ─── path classification ──────────────────────────────────────────────────────
 
@@ -302,6 +332,165 @@ namespace
         return n;
     }
 
+    // Reads a SnowdropString at `sstr` (16 bytes) into outPath. Heap-mode
+    // dereferences the pointer at +0; inline-mode reads the bytes directly.
+    bool ReadSnowdropStringAt(const BYTE* sstr, char* outPath, std::size_t outSize)
+    {
+        if (!sstr || !outPath || outSize == 0) return false;
+        outPath[0] = '\0';
+        __try
+        {
+            const char* path = nullptr;
+            if (sstr[0x0F] == 0)
+            {
+                path = (const char*)sstr;
+            }
+            else
+            {
+                path = *(const char* const*)sstr;
+                if (!path) return false;
+            }
+            std::size_t i = 0;
+            while (i + 1 < outSize && path[i]) { outPath[i] = path[i]; ++i; }
+            outPath[i] = '\0';
+            return outPath[0] != '\0';
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return false;
+        }
+    }
+
+    // Item base class has its asset paths spread across 8 explicit
+    // SnowdropStrings (+24, +128, +368, +384, +400, +416, +600, +616) plus 3
+    // AgentAssetRef structs whose first SnowdropString lives at +192, +256, +320
+    // (AgentAssetRef base offset + 16). Different subclass tags populate
+    // different fields, so we have to scan every candidate location.
+    bool ItemContainsPath(void* itemPtr, const char* targetPath)
+    {
+        if (!itemPtr || !targetPath) return false;
+        static const int kPathOffsets[] = {
+             24, 128, 368, 384, 400, 416, 600, 616,
+            192, 216, 256, 280, 320, 344,
+        };
+        char path[260];
+        for (int off : kPathOffsets)
+        {
+            if (!ReadSnowdropStringAt((const BYTE*)itemPtr + off, path, sizeof(path)))
+                continue;
+            if (_stricmp(path, targetPath) == 0) return true;
+        }
+        return false;
+    }
+
+    // Walks m_AssetRecords looking for an Item* containing targetPath in any of
+    // its candidate path slots. Returns the index, or -1 if not found.
+    int FindAssetRecordByPath(TD::AppearanceManager* am, const char* targetPath)
+    {
+        if (!am || !targetPath) return -1;
+        __try
+        {
+            void** arr = am->m_AssetRecords_Ptr;
+            int count = am->m_AssetRecords_Count;
+            if (!arr || count <= 0) return -1;
+
+            for (int i = 0; i < count; ++i)
+                if (ItemContainsPath(arr[i], targetPath)) return i;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) {}
+        return -1;
+    }
+
+    // Returns the index of `itemPtr` in m_AssetRecords, or -1 if not present.
+    int FindAssetRecordByPtr(TD::AppearanceManager* am, void* itemPtr)
+    {
+        if (!am || !itemPtr) return -1;
+        __try
+        {
+            void** arr = am->m_AssetRecords_Ptr;
+            int count = am->m_AssetRecords_Count;
+            if (!arr || count <= 0) return -1;
+            for (int i = 0; i < count; ++i)
+                if (arr[i] == itemPtr) return i;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) {}
+        return -1;
+    }
+
+    // Removes m_AssetRecords[index] by shifting subsequent entries down and
+    // decrementing the count. Does NOT call the Item dtor — the Item* is left
+    // unreferenced (small leak), which is far safer than guessing the engine's
+    // ref-counting / virtual destructor convention from outside.
+    bool RemoveAssetRecordAt(TD::AppearanceManager* am, int index)
+    {
+        if (!am || index < 0) return false;
+        __try
+        {
+            void** arr = am->m_AssetRecords_Ptr;
+            int count = am->m_AssetRecords_Count;
+            if (!arr || index >= count) return false;
+
+            for (int i = index; i < count - 1; ++i)
+                arr[i] = arr[i + 1];
+            arr[count - 1] = nullptr;
+            am->m_AssetRecords_Count = count - 1;
+            return true;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return false;
+        }
+    }
+
+    // POD helper: read m_AttachHashmap_Count and m_AssetRecords_Count under
+    // a single SEH guard. Lives in this anonymous namespace so the C++-aware
+    // SoftRevertOnEngineActivity (which holds std::string state) can call it
+    // without tripping MSVC C2712.
+    struct CountSnapshot
+    {
+        bool ok;
+        int  hashCt;
+        int  recordCt;
+    };
+
+    CountSnapshot ReadCountsGuarded(TD::AppearanceManager* am)
+    {
+        CountSnapshot s{};
+        s.ok = false;
+        if (!am) return s;
+        __try
+        {
+            s.hashCt   = am->m_AttachHashmap_Count;
+            s.recordCt = am->m_AssetRecords_Count;
+            s.ok       = true;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            s.ok = false;
+        }
+        return s;
+    }
+
+    // Engine's AttachHashmap remove (sub_1650620). Cleanly drops the bucket
+    // whose m_ModelPath equals `path`. Used in SoftRevert to undo our injected
+    // bucket once we detect any engine activity. Verified via decompile of
+    // sub_16679B0 — that's exactly how Character_ApplyClothingId removes
+    // matching buckets internally.
+    bool CallHashmapRemoveGuarded(TD::AppearanceManager* am, const char* path)
+    {
+        typedef __int64 (__fastcall *PFN)(void* hashmap, const char* path);
+        PFN fn = (PFN)(g_pBase + 0x1650620);
+        __try
+        {
+            fn((void*)((__int64)am + 0x18), path);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return false;
+        }
+        return true;
+    }
+
     // Engine's per-slot reset / "apply clothing id" (sub_16679B0). Removes
     // stale AttachBuckets where m_ClothingId == id and ref-drops any Item*
     // currently bound to that slot in m_AssetRecords. Used as a clean reset
@@ -461,6 +650,62 @@ static TD::AppearanceManager* GetPlayerAppearance(std::string* errOut)
     auto* am = player->m_pAppearance;
     if (!am)     { if (errOut) *errOut = "AppearanceManager null";   return nullptr; }
     return am;
+}
+
+void SkinnedMeshManager::SoftRevertOnEngineActivity()
+{
+    auto* am = GetPlayerAppearance(nullptr);
+    if (!am) return;
+
+    for (int slotIdx = 0; slotIdx < 27; ++slotIdx)
+    {
+        auto& st = s_modState[slotIdx];
+        if (!st.active) continue;
+
+        // Read current counts via the POD helper (SEH lives there — this
+        // function holds a std::string in s_modState so it can't host __try).
+        CountSnapshot snap = ReadCountsGuarded(am);
+        if (!snap.ok) continue;
+        int curHashCt   = snap.hashCt;
+        int curRecordCt = snap.recordCt;
+
+        // Wait kSettleFramesBeforeBaseline frames for the engine to consume
+        // the m_DirtyFlag we set in Apply. Once consumption is done, the
+        // hashmap and asset-records counts reflect "our mod is installed,
+        // engine is at rest." Snapshot those as the baseline.
+        if (st.baselineHashCt < 0)
+        {
+            if (++st.settleFrames < kSettleFramesBeforeBaseline) continue;
+            st.baselineHashCt   = curHashCt;
+            st.baselineRecordCt = curRecordCt;
+            continue;
+        }
+
+        // Any change from baseline means the engine ran some pipeline (user
+        // equipped, customized colors, opened/closed a menu, etc.). Soft
+        // revert: drop our injected bucket and any Item* still bound to our
+        // mod path. The engine's own state (whatever the user just did) is
+        // already there — by removing ours, only the engine's stays.
+        if (curHashCt != st.baselineHashCt || curRecordCt != st.baselineRecordCt)
+        {
+            // 1. Remove our bucket via engine's hashmap_remove (sub_1650620).
+            //    Uses the same code path Character_ApplyClothingId uses, so
+            //    hashmap integrity is preserved.
+            CallHashmapRemoveGuarded(am, st.modPath.c_str());
+
+            // 2. Drop any Item* in m_AssetRecords that contains our mod path
+            //    in any of its asset slots. May find more than one if the
+            //    engine pushed multiples; loop until none remain.
+            for (int safety = 0; safety < 8; ++safety)
+            {
+                int idx = FindAssetRecordByPath(am, st.modPath.c_str());
+                if (idx < 0) break;
+                if (!RemoveAssetRecordAt(am, idx)) break;
+            }
+
+            st = {};   // mark inactive, clear all state
+        }
+    }
 }
 
 void SkinnedMeshManager::ScanLiveSlots()
@@ -632,11 +877,22 @@ bool SkinnedMeshManager::ApplyDirectSwap(int slotIndex, const char* newPath,
     // our mod) and trashes the visual on the next outfit change.
     am->m_DirtyFlag = 1;
 
+    // Register / reset per-slot mod tracking. On the next few Update() ticks,
+    // SoftRevertOnEngineActivity will resolve our Item* in m_AssetRecords and
+    // then watch for the engine adding any further Item* (equip/customize) —
+    // when that happens, our Item* is removed and the mod reverts.
+    {
+        auto& st = s_modState[slotIndex];
+        st = {};
+        st.active  = true;
+        st.modPath = newPath;
+    }
+
     if (errOut)
     {
         char buf[220];
         std::snprintf(buf, sizeof(buf),
-                      "ok (reset:%s, %s, %d disq, %s) — instant swap",
+                      "ok (reset:%s, %s, %d disq, %s) — instant swap; reverts on next engine change",
                       slotReset       ? "y" : "n",
                       usedEngineAssign ? "engine assign" : "fast memcpy",
                       disqualified,

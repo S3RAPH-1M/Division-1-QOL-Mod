@@ -19,6 +19,9 @@ public:
     //   ca_<g>_k_*    Kneepads
     //   ca_<g>_h_*    Hat   (or Gloves if path contains "_gv_" / "gloves")
     //   ca_hg_* / cp_hg_* / ch_pm_mask_*  Gas Mask
+    //
+    // NOTE: path-prefix classification is now a fallback. Slot indices in
+    // m_Clothes[27] are deterministic on this build — see SlotGearType().
     enum class GearType
     {
         Unknown = 0,
@@ -34,6 +37,7 @@ public:
         Hat,
         Gloves,
         GasMask,
+        CosmeticMask,
         _Count
     };
 
@@ -75,6 +79,13 @@ public:
 
     static GearType    ClassifyPath(const char* path);
     static const char* GearTypeName(GearType t);
+
+    // Fixed slot → gear-type mapping. Verified live on this build: each
+    // index in m_Clothes[27] consistently lands on the same body part /
+    // outfit role regardless of the asset paths populating it. Indices
+    // above kKnownSlotCount return GearType::Unknown.
+    static constexpr int kKnownSlotCount = 13;   // slots 0..12 are named
+    static GearType    SlotGearType(int slotIndex);
 
 private:
     void ScanLiveSlots();

@@ -40,6 +40,856 @@ static const SkinnedMeshManager::ModelSwapEntry s_backpackModels_[] =
     { "Safety bag",                      "rogue/graph objects/gear/CA_CM_B_T1_U.mgraphobject" },
 };
 
+static const SkinnedMeshManager::ModelSwapEntry s_ChestPlateModels_[] =
+{
+    { "ca_cm_l2_as_sc",     "rogue/graph objects/gear/ca_cm_l2_as_sc.mgraphobject" },
+    { "ca_cm_l2_gs_uw",     "rogue/graph objects/gear/ca_cm_l2_gs_uw.mgraphobject" },
+    { "ca_cm_l2_mm_st",     "rogue/graph objects/gear/ca_cm_l2_mm_st.mgraphobject" },
+    { "ca_cm_l2_nm_uw",     "rogue/graph objects/gear/ca_cm_l2_nm_uw.mgraphobject" },
+    { "ca_cm_l2_pa_ba",     "rogue/graph objects/gear/ca_cm_l2_pa_ba.mgraphobject" },
+    { "ca_cm_l2_pa_d3",     "rogue/graph objects/gear/ca_cm_l2_pa_d3.mgraphobject" },
+    { "ca_cm_l2_pa_pr",     "rogue/graph objects/gear/ca_cm_l2_pa_pr.mgraphobject" },
+    { "ca_cm_l2_pk_uw",     "rogue/graph objects/gear/ca_cm_l2_pk_uw.mgraphobject" },
+    { "ca_cm_l2_rt_ab",     "rogue/graph objects/gear/ca_cm_l2_rt_ab.mgraphobject" },
+    { "ca_cm_l2_rt_fc",     "rogue/graph objects/gear/ca_cm_l2_rt_fc.mgraphobject" },
+    { "ca_cm_l2_rt_hf",     "rogue/graph objects/gear/ca_cm_l2_rt_hf.mgraphobject" },
+    { "ca_cm_l2_rt_ta",     "rogue/graph objects/gear/ca_cm_l2_rt_ta.mgraphobject" },
+    { "ca_cm_l2_set01_bg",  "rogue/graph objects/gear/ca_cm_l2_set01_bg.mgraphobject" },
+    { "ca_cm_l2_set02_bg",  "rogue/graph objects/gear/ca_cm_l2_set02_bg.mgraphobject" },
+    { "ca_cm_l2_set03_bg",  "rogue/graph objects/gear/ca_cm_l2_set03_bg.mgraphobject" },
+    { "ca_cm_l2_set04_bg",  "rogue/graph objects/gear/ca_cm_l2_set04_bg.mgraphobject" },
+    { "ca_cm_l2_ss_uw",     "rogue/graph objects/gear/ca_cm_l2_ss_uw.mgraphobject" },
+    { "ca_cm_l2_sv_set01",  "rogue/graph objects/gear/ca_cm_l2_sv_set01.mgraphobject" },
+    { "ca_cm_l2_t1_c",      "rogue/graph objects/gear/ca_cm_l2_t1_c.mgraphobject" },
+    { "ca_cm_l2_t1_e",      "rogue/graph objects/gear/ca_cm_l2_t1_e.mgraphobject" },
+    { "ca_cm_l2_t2_c",      "rogue/graph objects/gear/ca_cm_l2_t2_c.mgraphobject" },
+    { "ca_cm_l2_t2_e",      "rogue/graph objects/gear/ca_cm_l2_t2_e.mgraphobject" },
+    { "ca_cm_l2_t2_r",      "rogue/graph objects/gear/ca_cm_l2_t2_r.mgraphobject" },
+    { "ca_cm_l2_t2_u",      "rogue/graph objects/gear/ca_cm_l2_t2_u.mgraphobject" },
+    { "ca_cm_l2_t3_c",      "rogue/graph objects/gear/ca_cm_l2_t3_c.mgraphobject" },
+    { "ca_cm_l2_t3_r",      "rogue/graph objects/gear/ca_cm_l2_t3_r.mgraphobject" },
+    { "ca_cm_l2_t3_u",      "rogue/graph objects/gear/ca_cm_l2_t3_u.mgraphobject" },
+    { "ca_cm_l2_t4_c",      "rogue/graph objects/gear/ca_cm_l2_t4_c.mgraphobject" },
+    { "ca_cm_l2_t4_e",      "rogue/graph objects/gear/ca_cm_l2_t4_e.mgraphobject" },
+    { "ca_cm_l2_t4_l",      "rogue/graph objects/gear/ca_cm_l2_t4_l.mgraphobject" },
+    { "ca_cm_l2_t4_r",      "rogue/graph objects/gear/ca_cm_l2_t4_r.mgraphobject" },
+    { "ca_cm_l2_t4_u",      "rogue/graph objects/gear/ca_cm_l2_t4_u.mgraphobject" },
+    { "ca_cm_l2_t5_c",      "rogue/graph objects/gear/ca_cm_l2_t5_c.mgraphobject" },
+    { "ca_cm_l2_t5_e",      "rogue/graph objects/gear/ca_cm_l2_t5_e.mgraphobject" },
+    { "ca_cm_l2_t5_l",      "rogue/graph objects/gear/ca_cm_l2_t5_l.mgraphobject" },
+    { "ca_cm_l2_t5_r",      "rogue/graph objects/gear/ca_cm_l2_t5_r.mgraphobject" },
+    { "ca_cm_l2_t5_u",      "rogue/graph objects/gear/ca_cm_l2_t5_u.mgraphobject" },
+    { "ca_cm_l2_t6_e",      "rogue/graph objects/gear/ca_cm_l2_t6_e.mgraphobject" },
+    { "ca_cm_l2_t6_l",      "rogue/graph objects/gear/ca_cm_l2_t6_l.mgraphobject" },
+    { "ca_cm_l2_t6_r",      "rogue/graph objects/gear/ca_cm_l2_t6_r.mgraphobject" },
+    { "ca_cm_l2_t6_u",      "rogue/graph objects/gear/ca_cm_l2_t6_u.mgraphobject" },
+    { "ca_cm_l2_t7_e",      "rogue/graph objects/gear/ca_cm_l2_t7_e.mgraphobject" },
+    { "ca_cm_l2_t7_l",      "rogue/graph objects/gear/ca_cm_l2_t7_l.mgraphobject" },
+    { "ca_cm_l2_t7_l_dlc1", "rogue/graph objects/gear/ca_cm_l2_t7_l_dlc1.mgraphobject" },
+    { "ca_cm_l2_t7_r",      "rogue/graph objects/gear/ca_cm_l2_t7_r.mgraphobject" },
+    { "ca_cm_l2_tt_de",     "rogue/graph objects/gear/ca_cm_l2_tt_de.mgraphobject" },
+    { "ca_cm_l2_tt_fm",     "rogue/graph objects/gear/ca_cm_l2_tt_fm.mgraphobject" },
+    { "ca_cm_l2_tt_ls",     "rogue/graph objects/gear/ca_cm_l2_tt_ls.mgraphobject" },
+    { "ca_cm_l2_tt_rc",     "rogue/graph objects/gear/ca_cm_l2_tt_rc.mgraphobject" },
+    { "ca_cm_l2_uc_pn",     "rogue/graph objects/gear/ca_cm_l2_uc_pn.mgraphobject" },
+    { "ca_cm_l2_uw_dar",    "rogue/graph objects/gear/ca_cm_l2_uw_dar.mgraphobject" },
+    { "ca_cm_l2_wd_uw",     "rogue/graph objects/gear/ca_cm_l2_wd_uw.mgraphobject" },
+};
+
+static const SkinnedMeshManager::ModelSwapEntry s_HolsterModels_[] =
+{
+    { "ca_cm_t_as_sc",     "rogue/graph objects/gear/ca_cm_t_as_sc.mgraphobject" },
+    { "ca_cm_t_gs_uw",     "rogue/graph objects/gear/ca_cm_t_gs_uw.mgraphobject" },
+    { "ca_cm_t_mm_st",     "rogue/graph objects/gear/ca_cm_t_mm_st.mgraphobject" },
+    { "ca_cm_t_nm_uw",     "rogue/graph objects/gear/ca_cm_t_nm_uw.mgraphobject" },
+    { "ca_cm_t_pa_ba",     "rogue/graph objects/gear/ca_cm_t_pa_ba.mgraphobject" },
+    { "ca_cm_t_pa_d3",     "rogue/graph objects/gear/ca_cm_t_pa_d3.mgraphobject" },
+    { "ca_cm_t_pa_pr",     "rogue/graph objects/gear/ca_cm_t_pa_pr.mgraphobject" },
+    { "ca_cm_t_pk_uw",     "rogue/graph objects/gear/ca_cm_t_pk_uw.mgraphobject" },
+    { "ca_cm_t_rt_ab",     "rogue/graph objects/gear/ca_cm_t_rt_ab.mgraphobject" },
+    { "ca_cm_t_rt_fc",     "rogue/graph objects/gear/ca_cm_t_rt_fc.mgraphobject" },
+    { "ca_cm_t_rt_hf",     "rogue/graph objects/gear/ca_cm_t_rt_hf.mgraphobject" },
+    { "ca_cm_t_rt_ta",     "rogue/graph objects/gear/ca_cm_t_rt_ta.mgraphobject" },
+    { "ca_cm_t_set01_bg",  "rogue/graph objects/gear/ca_cm_t_set01_bg.mgraphobject" },
+    { "ca_cm_t_set02_bg",  "rogue/graph objects/gear/ca_cm_t_set02_bg.mgraphobject" },
+    { "ca_cm_t_set03_bg",  "rogue/graph objects/gear/ca_cm_t_set03_bg.mgraphobject" },
+    { "ca_cm_t_set04_bg",  "rogue/graph objects/gear/ca_cm_t_set04_bg.mgraphobject" },
+    { "ca_cm_t_ss_uw",     "rogue/graph objects/gear/ca_cm_t_ss_uw.mgraphobject" },
+    { "ca_cm_t_sv_set01",  "rogue/graph objects/gear/ca_cm_t_sv_set01.mgraphobject" },
+    { "ca_cm_t_t0_c",      "rogue/graph objects/gear/ca_cm_t_t0_c.mgraphobject" },
+    { "ca_cm_t_t1_c",      "rogue/graph objects/gear/ca_cm_t_t1_c.mgraphobject" },
+    { "ca_cm_t_t1_e",      "rogue/graph objects/gear/ca_cm_t_t1_e.mgraphobject" },
+    { "ca_cm_t_t2_c",      "rogue/graph objects/gear/ca_cm_t_t2_c.mgraphobject" },
+    { "ca_cm_t_t2_e",      "rogue/graph objects/gear/ca_cm_t_t2_e.mgraphobject" },
+    { "ca_cm_t_t3_c",      "rogue/graph objects/gear/ca_cm_t_t3_c.mgraphobject" },
+    { "ca_cm_t_t3_r",      "rogue/graph objects/gear/ca_cm_t_t3_r.mgraphobject" },
+    { "ca_cm_t_t3_u",      "rogue/graph objects/gear/ca_cm_t_t3_u.mgraphobject" },
+    { "ca_cm_t_t4_c",      "rogue/graph objects/gear/ca_cm_t_t4_c.mgraphobject" },
+    { "ca_cm_t_t4_e",      "rogue/graph objects/gear/ca_cm_t_t4_e.mgraphobject" },
+    { "ca_cm_t_t4_l",      "rogue/graph objects/gear/ca_cm_t_t4_l.mgraphobject" },
+    { "ca_cm_t_t4_r",      "rogue/graph objects/gear/ca_cm_t_t4_r.mgraphobject" },
+    { "ca_cm_t_t4_u",      "rogue/graph objects/gear/ca_cm_t_t4_u.mgraphobject" },
+    { "ca_cm_t_t5_c",      "rogue/graph objects/gear/ca_cm_t_t5_c.mgraphobject" },
+    { "ca_cm_t_t5_e",      "rogue/graph objects/gear/ca_cm_t_t5_e.mgraphobject" },
+    { "ca_cm_t_t5_l",      "rogue/graph objects/gear/ca_cm_t_t5_l.mgraphobject" },
+    { "ca_cm_t_t5_r",      "rogue/graph objects/gear/ca_cm_t_t5_r.mgraphobject" },
+    { "ca_cm_t_t5_u",      "rogue/graph objects/gear/ca_cm_t_t5_u.mgraphobject" },
+    { "ca_cm_t_t6_e",      "rogue/graph objects/gear/ca_cm_t_t6_e.mgraphobject" },
+    { "ca_cm_t_t6_l",      "rogue/graph objects/gear/ca_cm_t_t6_l.mgraphobject" },
+    { "ca_cm_t_t6_r",      "rogue/graph objects/gear/ca_cm_t_t6_r.mgraphobject" },
+    { "ca_cm_t_t6_u",      "rogue/graph objects/gear/ca_cm_t_t6_u.mgraphobject" },
+    { "ca_cm_t_t7_e",      "rogue/graph objects/gear/ca_cm_t_t7_e.mgraphobject" },
+    { "ca_cm_t_t7_l",      "rogue/graph objects/gear/ca_cm_t_t7_l.mgraphobject" },
+    { "ca_cm_t_t7_l_dlc1", "rogue/graph objects/gear/ca_cm_t_t7_l_dlc1.mgraphobject" },
+    { "ca_cm_t_t7_r",      "rogue/graph objects/gear/ca_cm_t_t7_r.mgraphobject" },
+    { "ca_cm_t_tt_de",     "rogue/graph objects/gear/ca_cm_t_tt_de.mgraphobject" },
+    { "ca_cm_t_tt_fm",     "rogue/graph objects/gear/ca_cm_t_tt_fm.mgraphobject" },
+    { "ca_cm_t_tt_ls",     "rogue/graph objects/gear/ca_cm_t_tt_ls.mgraphobject" },
+    { "ca_cm_t_tt_rc",     "rogue/graph objects/gear/ca_cm_t_tt_rc.mgraphobject" },
+    { "ca_cm_t_uc_pn",     "rogue/graph objects/gear/ca_cm_t_uc_pn.mgraphobject" },
+    { "ca_cm_t_uw_dar",    "rogue/graph objects/gear/ca_cm_t_uw_dar.mgraphobject" },
+    { "ca_cm_t_wd_uw",     "rogue/graph objects/gear/ca_cm_t_wd_uw.mgraphobject" },
+};
+
+static const SkinnedMeshManager::ModelSwapEntry s_KneePadModels_[] =
+{
+    { "ca_cm_k_as_sc",     "rogue/graph objects/gear/ca_cm_k_as_sc.mgraphobject" },
+    { "ca_cm_k_gs_uw",     "rogue/graph objects/gear/ca_cm_k_gs_uw.mgraphobject" },
+    { "ca_cm_k_mm_st",     "rogue/graph objects/gear/ca_cm_k_mm_st.mgraphobject" },
+    { "ca_cm_k_nm_uw",     "rogue/graph objects/gear/ca_cm_k_nm_uw.mgraphobject" },
+    { "ca_cm_k_pa_ba",     "rogue/graph objects/gear/ca_cm_k_pa_ba.mgraphobject" },
+    { "ca_cm_k_pa_d3",     "rogue/graph objects/gear/ca_cm_k_pa_d3.mgraphobject" },
+    { "ca_cm_k_pa_pr",     "rogue/graph objects/gear/ca_cm_k_pa_pr.mgraphobject" },
+    { "ca_cm_k_pk_uw",     "rogue/graph objects/gear/ca_cm_k_pk_uw.mgraphobject" },
+    { "ca_cm_k_rt_ab",     "rogue/graph objects/gear/ca_cm_k_rt_ab.mgraphobject" },
+    { "ca_cm_k_rt_fc",     "rogue/graph objects/gear/ca_cm_k_rt_fc.mgraphobject" },
+    { "ca_cm_k_rt_hf",     "rogue/graph objects/gear/ca_cm_k_rt_hf.mgraphobject" },
+    { "ca_cm_k_rt_ta",     "rogue/graph objects/gear/ca_cm_k_rt_ta.mgraphobject" },
+    { "ca_cm_k_set01_bg",  "rogue/graph objects/gear/ca_cm_k_set01_bg.mgraphobject" },
+    { "ca_cm_k_set02_bg",  "rogue/graph objects/gear/ca_cm_k_set02_bg.mgraphobject" },
+    { "ca_cm_k_set03_bg",  "rogue/graph objects/gear/ca_cm_k_set03_bg.mgraphobject" },
+    { "ca_cm_k_set04_bg",  "rogue/graph objects/gear/ca_cm_k_set04_bg.mgraphobject" },
+    { "ca_cm_k_ss_uw",     "rogue/graph objects/gear/ca_cm_k_ss_uw.mgraphobject" },
+    { "ca_cm_k_sv_set01",  "rogue/graph objects/gear/ca_cm_k_sv_set01.mgraphobject" },
+    { "ca_cm_k_t0_c",      "rogue/graph objects/gear/ca_cm_k_t0_c.mgraphobject" },
+    { "ca_cm_k_t1_c",      "rogue/graph objects/gear/ca_cm_k_t1_c.mgraphobject" },
+    { "ca_cm_k_t1_e",      "rogue/graph objects/gear/ca_cm_k_t1_e.mgraphobject" },
+    { "ca_cm_k_t2_c",      "rogue/graph objects/gear/ca_cm_k_t2_c.mgraphobject" },
+    { "ca_cm_k_t2_e",      "rogue/graph objects/gear/ca_cm_k_t2_e.mgraphobject" },
+    { "ca_cm_k_t3_c",      "rogue/graph objects/gear/ca_cm_k_t3_c.mgraphobject" },
+    { "ca_cm_k_t3_r",      "rogue/graph objects/gear/ca_cm_k_t3_r.mgraphobject" },
+    { "ca_cm_k_t4_c",      "rogue/graph objects/gear/ca_cm_k_t4_c.mgraphobject" },
+    { "ca_cm_k_t4_l",      "rogue/graph objects/gear/ca_cm_k_t4_l.mgraphobject" },
+    { "ca_cm_k_t5_c",      "rogue/graph objects/gear/ca_cm_k_t5_c.mgraphobject" },
+    { "ca_cm_k_t5_l",      "rogue/graph objects/gear/ca_cm_k_t5_l.mgraphobject" },
+    { "ca_cm_k_t6_l",      "rogue/graph objects/gear/ca_cm_k_t6_l.mgraphobject" },
+    { "ca_cm_k_t6_u",      "rogue/graph objects/gear/ca_cm_k_t6_u.mgraphobject" },
+    { "ca_cm_k_t7_l",      "rogue/graph objects/gear/ca_cm_k_t7_l.mgraphobject" },
+    { "ca_cm_k_t7_l_dlc1", "rogue/graph objects/gear/ca_cm_k_t7_l_dlc1.mgraphobject" },
+    { "ca_cm_k_t7_r",      "rogue/graph objects/gear/ca_cm_k_t7_r.mgraphobject" },
+    { "ca_cm_k_tt_de",     "rogue/graph objects/gear/ca_cm_k_tt_de.mgraphobject" },
+    { "ca_cm_k_tt_fm",     "rogue/graph objects/gear/ca_cm_k_tt_fm.mgraphobject" },
+    { "ca_cm_k_tt_ls",     "rogue/graph objects/gear/ca_cm_k_tt_ls.mgraphobject" },
+    { "ca_cm_k_tt_rc",     "rogue/graph objects/gear/ca_cm_k_tt_rc.mgraphobject" },
+    { "ca_cm_k_uc_pn",     "rogue/graph objects/gear/ca_cm_k_uc_pn.mgraphobject" },
+    { "ca_cm_k_ulc_haz",   "rogue/graph objects/gear/ca_cm_k_ulc_haz.mgraphobject" },
+    { "ca_cm_k_uw_dar",    "rogue/graph objects/gear/ca_cm_k_uw_dar.mgraphobject" },
+    { "ca_cm_k_wd_uw",     "rogue/graph objects/gear/ca_cm_k_wd_uw.mgraphobject" },
+};
+
+static const SkinnedMeshManager::ModelSwapEntry s_GloveModels_[] =
+{
+    { "ca_cm_h_mm_st",      "rogue/graph objects/gear/ca_cm_h_mm_st.mgraphobject" },
+    { "ca_cm_h_pa_ba",      "rogue/graph objects/gear/ca_cm_h_pa_ba.mgraphobject" },
+    { "ca_cm_h_pa_d3",      "rogue/graph objects/gear/ca_cm_h_pa_d3.mgraphobject" },
+    { "ca_cm_h_pa_pr",      "rogue/graph objects/gear/ca_cm_h_pa_pr.mgraphobject" },
+    { "ca_cm_h_rt_ab",      "rogue/graph objects/gear/ca_cm_h_rt_ab.mgraphobject" },
+    { "ca_cm_h_rt_fc",      "rogue/graph objects/gear/ca_cm_h_rt_fc.mgraphobject" },
+    { "ca_cm_h_rt_hf",      "rogue/graph objects/gear/ca_cm_h_rt_hf.mgraphobject" },
+    { "ca_cm_h_rt_ta",      "rogue/graph objects/gear/ca_cm_h_rt_ta.mgraphobject" },
+    { "ca_cm_h_set01_bg",   "rogue/graph objects/gear/ca_cm_h_set01_bg.mgraphobject" },
+    { "ca_cm_h_set02_bg",   "rogue/graph objects/gear/ca_cm_h_set02_bg.mgraphobject" },
+    { "ca_cm_h_set03_bg",   "rogue/graph objects/gear/ca_cm_h_set03_bg.mgraphobject" },
+    { "ca_cm_h_set04_bg",   "rogue/graph objects/gear/ca_cm_h_set04_bg.mgraphobject" },
+    { "ca_cm_h_sv_set01",   "rogue/graph objects/gear/ca_cm_h_sv_set01.mgraphobject" },
+    { "ca_cm_h_t0_c",       "rogue/graph objects/gear/ca_cm_h_t0_c.mgraphobject" },
+    { "ca_cm_h_t1_c",       "rogue/graph objects/gear/ca_cm_h_t1_c.mgraphobject" },
+    { "ca_cm_h_t1_e",       "rogue/graph objects/gear/ca_cm_h_t1_e.mgraphobject" },
+    { "ca_cm_h_t2_c",       "rogue/graph objects/gear/ca_cm_h_t2_c.mgraphobject" },
+    { "ca_cm_h_t2_e",       "rogue/graph objects/gear/ca_cm_h_t2_e.mgraphobject" },
+    { "ca_cm_h_t3_c",       "rogue/graph objects/gear/ca_cm_h_t3_c.mgraphobject" },
+    { "ca_cm_h_t3_r",       "rogue/graph objects/gear/ca_cm_h_t3_r.mgraphobject" },
+    { "ca_cm_h_t4_c",       "rogue/graph objects/gear/ca_cm_h_t4_c.mgraphobject" },
+    { "ca_cm_h_t4_l",       "rogue/graph objects/gear/ca_cm_h_t4_l.mgraphobject" },
+    { "ca_cm_h_t5_c",       "rogue/graph objects/gear/ca_cm_h_t5_c.mgraphobject" },
+    { "ca_cm_h_t5_l",       "rogue/graph objects/gear/ca_cm_h_t5_l.mgraphobject" },
+    { "ca_cm_h_t6_l",       "rogue/graph objects/gear/ca_cm_h_t6_l.mgraphobject" },
+    { "ca_cm_h_t6_u",       "rogue/graph objects/gear/ca_cm_h_t6_u.mgraphobject" },
+    { "ca_cm_h_t7_l",       "rogue/graph objects/gear/ca_cm_h_t7_l.mgraphobject" },
+    { "ca_cm_h_t7_l_dlc1",  "rogue/graph objects/gear/ca_cm_h_t7_l_dlc1.mgraphobject" },
+    { "ca_cm_h_t7_r",       "rogue/graph objects/gear/ca_cm_h_t7_r.mgraphobject" },
+    { "ca_cm_h_tt_de",      "rogue/graph objects/gear/ca_cm_h_tt_de.mgraphobject" },
+    { "ca_cm_h_tt_fm",      "rogue/graph objects/gear/ca_cm_h_tt_fm.mgraphobject" },
+    { "ca_cm_h_tt_ls",      "rogue/graph objects/gear/ca_cm_h_tt_ls.mgraphobject" },
+    { "ca_cm_h_tt_rc",      "rogue/graph objects/gear/ca_cm_h_tt_rc.mgraphobject" },
+    { "ca_cm_h_tx_as_sc",   "rogue/graph objects/gear/ca_cm_h_tx_as_sc.mgraphobject" },
+    { "ca_cm_h_tx_gs_uw",   "rogue/graph objects/gear/ca_cm_h_tx_gs_uw.mgraphobject" },
+    { "ca_cm_h_tx_mech_01", "rogue/graph objects/gear/ca_cm_h_tx_mech_01.mgraphobject" },
+    { "ca_cm_h_tx_mech_02", "rogue/graph objects/gear/ca_cm_h_tx_mech_02.mgraphobject" },
+    { "ca_cm_h_tx_nm_uw",   "rogue/graph objects/gear/ca_cm_h_tx_nm_uw.mgraphobject" },
+    { "ca_cm_h_tx_ss_uw",   "rogue/graph objects/gear/ca_cm_h_tx_ss_uw.mgraphobject" },
+    { "ca_cm_h_tx_ulc_emt", "rogue/graph objects/gear/ca_cm_h_tx_ulc_emt.mgraphobject" },
+    { "ca_cm_h_tx_uw_dar",  "rogue/graph objects/gear/ca_cm_h_tx_uw_dar.mgraphobject" },
+    { "ca_cm_h_uc_pn",      "rogue/graph objects/gear/ca_cm_h_uc_pn.mgraphobject" },
+};
+
+static const SkinnedMeshManager::ModelSwapEntry s_HatModels_[] =
+{
+    { "ca_cm_h_a",               "rogue/graph objects/gear/ca_cm_h_a.mgraphobject" },
+    { "ca_cm_h_b",               "rogue/graph objects/gear/ca_cm_h_b.mgraphobject" },
+    { "ca_cm_h_bg_riot",         "rogue/graph objects/gear/ca_cm_h_bg_riot.mgraphobject" },
+    { "ca_cm_h_c",               "rogue/graph objects/gear/ca_cm_h_c.mgraphobject" },
+    { "ca_cm_h_chase",           "rogue/graph objects/gear/ca_cm_h_chase.mgraphobject" },
+    { "ca_cm_h_chase02",         "rogue/graph objects/gear/ca_cm_h_chase02.mgraphobject" },
+    { "ca_cm_h_d",               "rogue/graph objects/gear/ca_cm_h_d.mgraphobject" },
+    { "ca_cm_h_dlc1",            "rogue/graph objects/gear/ca_cm_h_dlc1.mgraphobject" },
+    { "ca_cm_h_e",               "rogue/graph objects/gear/ca_cm_h_e.mgraphobject" },
+    { "ca_cm_h_exo_ast",         "rogue/graph objects/gear/ca_cm_h_exo_ast.mgraphobject" },
+    { "ca_cm_h_exo_ast2",        "rogue/graph objects/gear/ca_cm_h_exo_ast2.mgraphobject" },
+    { "ca_cm_h_f",               "rogue/graph objects/gear/ca_cm_h_f.mgraphobject" },
+    { "ca_cm_h_fac_cln",         "rogue/graph objects/gear/ca_cm_h_fac_cln.mgraphobject" },
+    { "ca_cm_h_fac_jtf",         "rogue/graph objects/gear/ca_cm_h_fac_jtf.mgraphobject" },
+    { "ca_cm_h_fac_lmb",         "rogue/graph objects/gear/ca_cm_h_fac_lmb.mgraphobject" },
+    { "ca_cm_h_fac_lmb3",        "rogue/graph objects/gear/ca_cm_h_fac_lmb3.mgraphobject" },
+    { "ca_cm_h_fac_rkr",         "rogue/graph objects/gear/ca_cm_h_fac_rkr.mgraphobject" },
+    { "ca_cm_h_g",               "rogue/graph objects/gear/ca_cm_h_g.mgraphobject" },
+    { "ca_cm_h_gs_fm",           "rogue/graph objects/gear/ca_cm_h_gs_fm.mgraphobject" },
+    { "ca_cm_h_gv_al",           "rogue/graph objects/gear/ca_cm_h_gv_al.mgraphobject" },
+    { "ca_cm_h_gv_de",           "rogue/graph objects/gear/ca_cm_h_gv_de.mgraphobject" },
+    { "ca_cm_h_gv_fc",           "rogue/graph objects/gear/ca_cm_h_gv_fc.mgraphobject" },
+    { "ca_cm_h_gv_fl",           "rogue/graph objects/gear/ca_cm_h_gv_fl.mgraphobject" },
+    { "ca_cm_h_gv_np",           "rogue/graph objects/gear/ca_cm_h_gv_np.mgraphobject" },
+    { "ca_cm_h_gv_rc",           "rogue/graph objects/gear/ca_cm_h_gv_rc.mgraphobject" },
+    { "ca_cm_h_gv_sc",           "rogue/graph objects/gear/ca_cm_h_gv_sc.mgraphobject" },
+    { "ca_cm_h_gv_st",           "rogue/graph objects/gear/ca_cm_h_gv_st.mgraphobject" },
+    { "ca_cm_h_gv_tc",           "rogue/graph objects/gear/ca_cm_h_gv_tc.mgraphobject" },
+    { "ca_cm_h_h",               "rogue/graph objects/gear/ca_cm_h_h.mgraphobject" },
+    { "ca_cm_h_hol",             "rogue/graph objects/gear/ca_cm_h_hol.mgraphobject" },
+    { "ca_cm_h_hun_ft",          "rogue/graph objects/gear/ca_cm_h_hun_ft.mgraphobject" },
+    { "ca_cm_h_i",               "rogue/graph objects/gear/ca_cm_h_i.mgraphobject" },
+    { "ca_cm_h_j",               "rogue/graph objects/gear/ca_cm_h_j.mgraphobject" },
+    { "ca_cm_h_lon_st",          "rogue/graph objects/gear/ca_cm_h_lon_st.mgraphobject" },
+    { "ca_cm_h_lsa",             "rogue/graph objects/gear/ca_cm_h_lsa.mgraphobject" },
+    { "ca_cm_h_lsb",             "rogue/graph objects/gear/ca_cm_h_lsb.mgraphobject" },
+    { "ca_cm_h_mb1_a",           "rogue/graph objects/gear/ca_cm_h_mb1_a.mgraphobject" },
+    { "ca_cm_h_mb1_c",           "rogue/graph objects/gear/ca_cm_h_mb1_c.mgraphobject" },
+    { "ca_cm_h_mb1_h2",          "rogue/graph objects/gear/ca_cm_h_mb1_h2.mgraphobject" },
+    { "ca_cm_h_mb2_a",           "rogue/graph objects/gear/ca_cm_h_mb2_a.mgraphobject" },
+    { "ca_cm_h_mb2_b",           "rogue/graph objects/gear/ca_cm_h_mb2_b.mgraphobject" },
+    { "ca_cm_h_mb2_c",           "rogue/graph objects/gear/ca_cm_h_mb2_c.mgraphobject" },
+    { "ca_cm_h_mb2_d",           "rogue/graph objects/gear/ca_cm_h_mb2_d.mgraphobject" },
+    { "ca_cm_h_mb3_a",           "rogue/graph objects/gear/ca_cm_h_mb3_a.mgraphobject" },
+    { "ca_cm_h_mb3_b",           "rogue/graph objects/gear/ca_cm_h_mb3_b.mgraphobject" },
+    { "ca_cm_h_mb3_c",           "rogue/graph objects/gear/ca_cm_h_mb3_c.mgraphobject" },
+    { "ca_cm_h_mb4_a",           "rogue/graph objects/gear/ca_cm_h_mb4_a.mgraphobject" },
+    { "ca_cm_h_mb4_b",           "rogue/graph objects/gear/ca_cm_h_mb4_b.mgraphobject" },
+    { "ca_cm_h_mb4_c",           "rogue/graph objects/gear/ca_cm_h_mb4_c.mgraphobject" },
+    { "ca_cm_h_mb4_d",           "rogue/graph objects/gear/ca_cm_h_mb4_d.mgraphobject" },
+    { "ca_cm_h_mb4_e",           "rogue/graph objects/gear/ca_cm_h_mb4_e.mgraphobject" },
+    { "ca_cm_h_mb5_a",           "rogue/graph objects/gear/ca_cm_h_mb5_a.mgraphobject" },
+    { "ca_cm_h_mb5_c",           "rogue/graph objects/gear/ca_cm_h_mb5_c.mgraphobject" },
+    { "ca_cm_h_mb5_d",           "rogue/graph objects/gear/ca_cm_h_mb5_d.mgraphobject" },
+    { "ca_cm_h_mb5_e",           "rogue/graph objects/gear/ca_cm_h_mb5_e.mgraphobject" },
+    { "ca_cm_h_mbox_bolivia_01", "rogue/graph objects/gear/ca_cm_h_mbox_bolivia_01.mgraphobject" },
+    { "ca_cm_h_mbox_miner_01",   "rogue/graph objects/gear/ca_cm_h_mbox_miner_01.mgraphobject" },
+    { "ca_cm_h_mbox_trap_01",    "rogue/graph objects/gear/ca_cm_h_mbox_trap_01.mgraphobject" },
+    { "ca_cm_h_mc_gn",           "rogue/graph objects/gear/ca_cm_h_mc_gn.mgraphobject" },
+    { "ca_cm_h_mc_rt",           "rogue/graph objects/gear/ca_cm_h_mc_rt.mgraphobject" },
+    { "ca_cm_h_mil_df",          "rogue/graph objects/gear/ca_cm_h_mil_df.mgraphobject" },
+    { "ca_cm_h_mil_dm",          "rogue/graph objects/gear/ca_cm_h_mil_dm.mgraphobject" },
+    { "ca_cm_h_mil_pj",          "rogue/graph objects/gear/ca_cm_h_mil_pj.mgraphobject" },
+    { "ca_cm_h_mil_sn",          "rogue/graph objects/gear/ca_cm_h_mil_sn.mgraphobject" },
+    { "ca_cm_h_mt_rs",           "rogue/graph objects/gear/ca_cm_h_mt_rs.mgraphobject" },
+    { "ca_cm_h_peu_fm",          "rogue/graph objects/gear/ca_cm_h_peu_fm.mgraphobject" },
+    { "ca_cm_h_peu_mi",          "rogue/graph objects/gear/ca_cm_h_peu_mi.mgraphobject" },
+    { "ca_cm_h_peu_ny",          "rogue/graph objects/gear/ca_cm_h_peu_ny.mgraphobject" },
+    { "ca_cm_h_peu_pc",          "rogue/graph objects/gear/ca_cm_h_peu_pc.mgraphobject" },
+    { "ca_cm_h_pmc2_01",         "rogue/graph objects/gear/ca_cm_h_pmc2_01.mgraphobject" },
+    { "ca_cm_h_pmc2_02",         "rogue/graph objects/gear/ca_cm_h_pmc2_02.mgraphobject" },
+    { "ca_cm_h_pmc_01",          "rogue/graph objects/gear/ca_cm_h_pmc_01.mgraphobject" },
+    { "ca_cm_h_pmc_02",          "rogue/graph objects/gear/ca_cm_h_pmc_02.mgraphobject" },
+    { "ca_cm_h_pmc_03",          "rogue/graph objects/gear/ca_cm_h_pmc_03.mgraphobject" },
+    { "ca_cm_h_pmc_04",          "rogue/graph objects/gear/ca_cm_h_pmc_04.mgraphobject" },
+    { "ca_cm_h_pol_mc",          "rogue/graph objects/gear/ca_cm_h_pol_mc.mgraphobject" },
+    { "ca_cm_h_pol_nt",          "rogue/graph objects/gear/ca_cm_h_pol_nt.mgraphobject" },
+    { "ca_cm_h_pol_sh",          "rogue/graph objects/gear/ca_cm_h_pol_sh.mgraphobject" },
+    { "ca_cm_h_pol_sw",          "rogue/graph objects/gear/ca_cm_h_pol_sw.mgraphobject" },
+    { "ca_cm_h_pr_mk",           "rogue/graph objects/gear/ca_cm_h_pr_mk.mgraphobject" },
+    { "ca_cm_h_snta",            "rogue/graph objects/gear/ca_cm_h_snta.mgraphobject" },
+    { "ca_cm_h_spo_bp",          "rogue/graph objects/gear/ca_cm_h_spo_bp.mgraphobject" },
+    { "ca_cm_h_spo_hp",          "rogue/graph objects/gear/ca_cm_h_spo_hp.mgraphobject" },
+    { "ca_cm_h_spo_rd",          "rogue/graph objects/gear/ca_cm_h_spo_rd.mgraphobject" },
+    { "ca_cm_h_spo_sb",          "rogue/graph objects/gear/ca_cm_h_spo_sb.mgraphobject" },
+    { "ca_cm_h_sw_e1",           "rogue/graph objects/gear/ca_cm_h_sw_e1.mgraphobject" },
+    { "ca_cm_h_sw_w1",           "rogue/graph objects/gear/ca_cm_h_sw_w1.mgraphobject" },
+    { "ca_cm_h_sw_w2",           "rogue/graph objects/gear/ca_cm_h_sw_w2.mgraphobject" },
+    { "ca_cm_h_tox",             "rogue/graph objects/gear/ca_cm_h_tox.mgraphobject" },
+    { "ca_cm_h_ubi_gr",          "rogue/graph objects/gear/ca_cm_h_ubi_gr.mgraphobject" },
+    { "ca_cm_h_ubi_sc",          "rogue/graph objects/gear/ca_cm_h_ubi_sc.mgraphobject" },
+    { "ca_cm_h_uc_ge4",          "rogue/graph objects/gear/ca_cm_h_uc_ge4.mgraphobject" },
+    { "ca_cm_h_ues_s1",          "rogue/graph objects/gear/ca_cm_h_ues_s1.mgraphobject" },
+    { "ca_cm_h_ues_s2",          "rogue/graph objects/gear/ca_cm_h_ues_s2.mgraphobject" },
+    { "ca_cm_h_ues_s3",          "rogue/graph objects/gear/ca_cm_h_ues_s3.mgraphobject" },
+    { "ca_cm_h_ues_tx",          "rogue/graph objects/gear/ca_cm_h_ues_tx.mgraphobject" },
+    { "ca_cm_h_ulc_cent",        "rogue/graph objects/gear/ca_cm_h_ulc_cent.mgraphobject" },
+    { "ca_cm_h_ulc_emt",         "rogue/graph objects/gear/ca_cm_h_ulc_emt.mgraphobject" },
+    { "ca_cm_h_ulc_fire",        "rogue/graph objects/gear/ca_cm_h_ulc_fire.mgraphobject" },
+    { "ca_cm_h_ulc_haz",         "rogue/graph objects/gear/ca_cm_h_ulc_haz.mgraphobject" },
+    { "ca_cm_h_ulc_hun",         "rogue/graph objects/gear/ca_cm_h_ulc_hun.mgraphobject" },
+    { "ca_cm_h_ulc_jtf",         "rogue/graph objects/gear/ca_cm_h_ulc_jtf.mgraphobject" },
+    { "ca_cm_h_ulc_pol",         "rogue/graph objects/gear/ca_cm_h_ulc_pol.mgraphobject" },
+    { "ca_cm_h_ulc_rb6",         "rogue/graph objects/gear/ca_cm_h_ulc_rb6.mgraphobject" },
+    { "ca_cm_h_ulc_sbow",        "rogue/graph objects/gear/ca_cm_h_ulc_sbow.mgraphobject" },
+    { "ca_cm_h_ulc_sur",         "rogue/graph objects/gear/ca_cm_h_ulc_sur.mgraphobject" },
+    { "ca_cm_h_usm_de",          "rogue/graph objects/gear/ca_cm_h_usm_de.mgraphobject" },
+    { "ca_cm_h_usm_sn",          "rogue/graph objects/gear/ca_cm_h_usm_sn.mgraphobject" },
+    { "ca_cm_h_usm_ur",          "rogue/graph objects/gear/ca_cm_h_usm_ur.mgraphobject" },
+    { "ca_cm_h_usm_wl",          "rogue/graph objects/gear/ca_cm_h_usm_wl.mgraphobject" },
+    { "ca_cm_h_uw_dar",          "rogue/graph objects/gear/ca_cm_h_uw_dar.mgraphobject" },
+    { "ca_cm_h_uw_pun",          "rogue/graph objects/gear/ca_cm_h_uw_pun.mgraphobject" },
+    { "ca_cm_h_uw_rav",          "rogue/graph objects/gear/ca_cm_h_uw_rav.mgraphobject" },
+};
+
+static const SkinnedMeshManager::ModelSwapEntry s_GasMaskModels_[] =
+{
+    { "ca_hg_gs_uw",    "rogue/graph objects/gear/ca_hg_gs_uw.mgraphobject" },
+    { "ca_hg_nm_uw",    "rogue/graph objects/gear/ca_hg_nm_uw.mgraphobject" },
+    { "ca_hg_pa_ba",    "rogue/graph objects/gear/ca_hg_pa_ba.mgraphobject" },
+    { "ca_hg_pa_d3",    "rogue/graph objects/gear/ca_hg_pa_d3.mgraphobject" },
+    { "ca_hg_pa_pr",    "rogue/graph objects/gear/ca_hg_pa_pr.mgraphobject" },
+    { "ca_hg_pk_uw",    "rogue/graph objects/gear/ca_hg_pk_uw.mgraphobject" },
+    { "ca_hg_rt_fc",    "rogue/graph objects/gear/ca_hg_rt_fc.mgraphobject" },
+    { "ca_hg_set01_bg", "rogue/graph objects/gear/ca_hg_set01_bg.mgraphobject" },
+    { "ca_hg_set04_bg", "rogue/graph objects/gear/ca_hg_set04_bg.mgraphobject" },
+    { "ca_hg_ss_uw",    "rogue/graph objects/gear/ca_hg_ss_uw.mgraphobject" },
+    { "ca_hg_uw_dar",   "rogue/graph objects/gear/ca_hg_uw_dar.mgraphobject" },
+    { "ca_hg_wd_uw",    "rogue/graph objects/gear/ca_hg_wd_uw.mgraphobject" },
+    { "ch_pm_mask_hun", "rogue/graph objects/gear/ch_pm_mask_hun.mgraphobject" },
+    { "cp_hg_as_sc",    "rogue/graph objects/gear/cp_hg_as_sc.mgraphobject" },
+    { "cp_hg_mm_st",    "rogue/graph objects/gear/cp_hg_mm_st.mgraphobject" },
+    { "cp_hg_rt_ab",    "rogue/graph objects/gear/cp_hg_rt_ab.mgraphobject" },
+    { "cp_hg_rt_hf",    "rogue/graph objects/gear/cp_hg_rt_hf.mgraphobject" },
+    { "cp_hg_rt_ta",    "rogue/graph objects/gear/cp_hg_rt_ta.mgraphobject" },
+    { "cp_hg_set02_bg", "rogue/graph objects/gear/cp_hg_set02_bg.mgraphobject" },
+    { "cp_hg_set03_bg", "rogue/graph objects/gear/cp_hg_set03_bg.mgraphobject" },
+    { "cp_hg_sv_set01", "rogue/graph objects/gear/cp_hg_sv_set01.mgraphobject" },
+    { "cp_hg_t1",       "rogue/graph objects/gear/cp_hg_t1.mgraphobject" },
+    { "cp_hg_t2",       "rogue/graph objects/gear/cp_hg_t2.mgraphobject" },
+    { "cp_hg_t3",       "rogue/graph objects/gear/cp_hg_t3.mgraphobject" },
+    { "cp_hg_t4",       "rogue/graph objects/gear/cp_hg_t4.mgraphobject" },
+    { "cp_hg_t5_c",     "rogue/graph objects/gear/cp_hg_t5_c.mgraphobject" },
+    { "cp_hg_t6",       "rogue/graph objects/gear/cp_hg_t6.mgraphobject" },
+    { "cp_hg_t7",       "rogue/graph objects/gear/cp_hg_t7.mgraphobject" },
+    { "cp_hg_tt_de",    "rogue/graph objects/gear/cp_hg_tt_de.mgraphobject" },
+    { "cp_hg_tt_fm",    "rogue/graph objects/gear/cp_hg_tt_fm.mgraphobject" },
+    { "cp_hg_tt_ls",    "rogue/graph objects/gear/cp_hg_tt_ls.mgraphobject" },
+    { "cp_hg_tt_rc",    "rogue/graph objects/gear/cp_hg_tt_rc.mgraphobject" },
+    { "cp_hg_uc_pn",    "rogue/graph objects/gear/cp_hg_uc_pn.mgraphobject" },
+};
+
+static const SkinnedMeshManager::ModelSwapEntry s_ShirtModels_[] =
+{
+    { "ca_cm_l1_a",        "rogue/graph objects/gear/ca_cm_l1_a.mgraphobject" },
+    { "ca_cm_l1_a0",       "rogue/graph objects/gear/ca_cm_l1_a0.mgraphobject" },
+    { "ca_cm_l1_b",        "rogue/graph objects/gear/ca_cm_l1_b.mgraphobject" },
+    { "ca_cm_l1_bg_riot",  "rogue/graph objects/gear/ca_cm_l1_bg_riot.mgraphobject" },
+    { "ca_cm_l1_c",        "rogue/graph objects/gear/ca_cm_l1_c.mgraphobject" },
+    { "ca_cm_l1_chase02",  "rogue/graph objects/gear/ca_cm_l1_chase02.mgraphobject" },
+    { "ca_cm_l1_d",        "rogue/graph objects/gear/ca_cm_l1_d.mgraphobject" },
+    { "ca_cm_l1_e",        "rogue/graph objects/gear/ca_cm_l1_e.mgraphobject" },
+    { "ca_cm_l1_exo_ast",  "rogue/graph objects/gear/ca_cm_l1_exo_ast.mgraphobject" },
+    { "ca_cm_l1_exo_ast2", "rogue/graph objects/gear/ca_cm_l1_exo_ast2.mgraphobject" },
+    { "ca_cm_l1_f",        "rogue/graph objects/gear/ca_cm_l1_f.mgraphobject" },
+    { "ca_cm_l1_fac_cln",  "rogue/graph objects/gear/ca_cm_l1_fac_cln.mgraphobject" },
+    { "ca_cm_l1_fac_jtf",  "rogue/graph objects/gear/ca_cm_l1_fac_jtf.mgraphobject" },
+    { "ca_cm_l1_fac_lmb",  "rogue/graph objects/gear/ca_cm_l1_fac_lmb.mgraphobject" },
+    { "ca_cm_l1_fac_lmb3", "rogue/graph objects/gear/ca_cm_l1_fac_lmb3.mgraphobject" },
+    { "ca_cm_l1_fac_rkr",  "rogue/graph objects/gear/ca_cm_l1_fac_rkr.mgraphobject" },
+    { "ca_cm_l1_g",        "rogue/graph objects/gear/ca_cm_l1_g.mgraphobject" },
+    { "ca_cm_l1_gs_fm",    "rogue/graph objects/gear/ca_cm_l1_gs_fm.mgraphobject" },
+    { "ca_cm_l1_gv_al",    "rogue/graph objects/gear/ca_cm_l1_gv_al.mgraphobject" },
+    { "ca_cm_l1_gv_de",    "rogue/graph objects/gear/ca_cm_l1_gv_de.mgraphobject" },
+    { "ca_cm_l1_gv_fc",    "rogue/graph objects/gear/ca_cm_l1_gv_fc.mgraphobject" },
+    { "ca_cm_l1_gv_fl",    "rogue/graph objects/gear/ca_cm_l1_gv_fl.mgraphobject" },
+    { "ca_cm_l1_gv_np",    "rogue/graph objects/gear/ca_cm_l1_gv_np.mgraphobject" },
+    { "ca_cm_l1_gv_rc",    "rogue/graph objects/gear/ca_cm_l1_gv_rc.mgraphobject" },
+    { "ca_cm_l1_gv_sc",    "rogue/graph objects/gear/ca_cm_l1_gv_sc.mgraphobject" },
+    { "ca_cm_l1_gv_sk",    "rogue/graph objects/gear/ca_cm_l1_gv_sk.mgraphobject" },
+    { "ca_cm_l1_gv_st",    "rogue/graph objects/gear/ca_cm_l1_gv_st.mgraphobject" },
+    { "ca_cm_l1_gv_tc",    "rogue/graph objects/gear/ca_cm_l1_gv_tc.mgraphobject" },
+    { "ca_cm_l1_h",        "rogue/graph objects/gear/ca_cm_l1_h.mgraphobject" },
+    { "ca_cm_l1_hol",      "rogue/graph objects/gear/ca_cm_l1_hol.mgraphobject" },
+    { "ca_cm_l1_hun_ft",   "rogue/graph objects/gear/ca_cm_l1_hun_ft.mgraphobject" },
+    { "ca_cm_l1_i",        "rogue/graph objects/gear/ca_cm_l1_i.mgraphobject" },
+    { "ca_cm_l1_j",        "rogue/graph objects/gear/ca_cm_l1_j.mgraphobject" },
+    { "ca_cm_l1_k",        "rogue/graph objects/gear/ca_cm_l1_k.mgraphobject" },
+    { "ca_cm_l1_lon_st",   "rogue/graph objects/gear/ca_cm_l1_lon_st.mgraphobject" },
+    { "ca_cm_l1_lsa",      "rogue/graph objects/gear/ca_cm_l1_lsa.mgraphobject" },
+    { "ca_cm_l1_lsb",      "rogue/graph objects/gear/ca_cm_l1_lsb.mgraphobject" },
+    { "ca_cm_l1_mb2_a",    "rogue/graph objects/gear/ca_cm_l1_mb2_a.mgraphobject" },
+    { "ca_cm_l1_mb2_b",    "rogue/graph objects/gear/ca_cm_l1_mb2_b.mgraphobject" },
+    { "ca_cm_l1_mb2_c",    "rogue/graph objects/gear/ca_cm_l1_mb2_c.mgraphobject" },
+    { "ca_cm_l1_mb2_d",    "rogue/graph objects/gear/ca_cm_l1_mb2_d.mgraphobject" },
+    { "ca_cm_l1_mb5_a",    "rogue/graph objects/gear/ca_cm_l1_mb5_a.mgraphobject" },
+    { "ca_cm_l1_mb5_b",    "rogue/graph objects/gear/ca_cm_l1_mb5_b.mgraphobject" },
+    { "ca_cm_l1_mb5_c",    "rogue/graph objects/gear/ca_cm_l1_mb5_c.mgraphobject" },
+    { "ca_cm_l1_mb5_d",    "rogue/graph objects/gear/ca_cm_l1_mb5_d.mgraphobject" },
+    { "ca_cm_l1_mc_gn",    "rogue/graph objects/gear/ca_cm_l1_mc_gn.mgraphobject" },
+    { "ca_cm_l1_mc_rt",    "rogue/graph objects/gear/ca_cm_l1_mc_rt.mgraphobject" },
+    { "ca_cm_l1_mil_df",   "rogue/graph objects/gear/ca_cm_l1_mil_df.mgraphobject" },
+    { "ca_cm_l1_mil_dm",   "rogue/graph objects/gear/ca_cm_l1_mil_dm.mgraphobject" },
+    { "ca_cm_l1_mil_pj",   "rogue/graph objects/gear/ca_cm_l1_mil_pj.mgraphobject" },
+    { "ca_cm_l1_mil_sn",   "rogue/graph objects/gear/ca_cm_l1_mil_sn.mgraphobject" },
+    { "ca_cm_l1_mm",       "rogue/graph objects/gear/ca_cm_l1_mm.mgraphobject" },
+    { "ca_cm_l1_mt_rs",    "rogue/graph objects/gear/ca_cm_l1_mt_rs.mgraphobject" },
+    { "ca_cm_l1_peu_fm",   "rogue/graph objects/gear/ca_cm_l1_peu_fm.mgraphobject" },
+    { "ca_cm_l1_peu_mi",   "rogue/graph objects/gear/ca_cm_l1_peu_mi.mgraphobject" },
+    { "ca_cm_l1_peu_ny",   "rogue/graph objects/gear/ca_cm_l1_peu_ny.mgraphobject" },
+    { "ca_cm_l1_peu_pc",   "rogue/graph objects/gear/ca_cm_l1_peu_pc.mgraphobject" },
+    { "ca_cm_l1_pmc2_01",  "rogue/graph objects/gear/ca_cm_l1_pmc2_01.mgraphobject" },
+    { "ca_cm_l1_pmc2_02",  "rogue/graph objects/gear/ca_cm_l1_pmc2_02.mgraphobject" },
+    { "ca_cm_l1_pmc_01",   "rogue/graph objects/gear/ca_cm_l1_pmc_01.mgraphobject" },
+    { "ca_cm_l1_pmc_02",   "rogue/graph objects/gear/ca_cm_l1_pmc_02.mgraphobject" },
+    { "ca_cm_l1_pmc_03",   "rogue/graph objects/gear/ca_cm_l1_pmc_03.mgraphobject" },
+    { "ca_cm_l1_pmc_04",   "rogue/graph objects/gear/ca_cm_l1_pmc_04.mgraphobject" },
+    { "ca_cm_l1_pol_mc",   "rogue/graph objects/gear/ca_cm_l1_pol_mc.mgraphobject" },
+    { "ca_cm_l1_pol_nt",   "rogue/graph objects/gear/ca_cm_l1_pol_nt.mgraphobject" },
+    { "ca_cm_l1_pol_sh",   "rogue/graph objects/gear/ca_cm_l1_pol_sh.mgraphobject" },
+    { "ca_cm_l1_pol_sw",   "rogue/graph objects/gear/ca_cm_l1_pol_sw.mgraphobject" },
+    { "ca_cm_l1_pr_mk",    "rogue/graph objects/gear/ca_cm_l1_pr_mk.mgraphobject" },
+    { "ca_cm_l1_spo_bp",   "rogue/graph objects/gear/ca_cm_l1_spo_bp.mgraphobject" },
+    { "ca_cm_l1_spo_hp",   "rogue/graph objects/gear/ca_cm_l1_spo_hp.mgraphobject" },
+    { "ca_cm_l1_spo_rd",   "rogue/graph objects/gear/ca_cm_l1_spo_rd.mgraphobject" },
+    { "ca_cm_l1_spo_sb",   "rogue/graph objects/gear/ca_cm_l1_spo_sb.mgraphobject" },
+    { "ca_cm_l1_sss",      "rogue/graph objects/gear/ca_cm_l1_sss.mgraphobject" },
+    { "Starting Hoodie",    "rogue/graph objects/gear/ca_cm_l1_start.mgraphobject" },
+    { "ca_cm_l1_sw_e1",    "rogue/graph objects/gear/ca_cm_l1_sw_e1.mgraphobject" },
+    { "ca_cm_l1_sw_e2",    "rogue/graph objects/gear/ca_cm_l1_sw_e2.mgraphobject" },
+    { "ca_cm_l1_sw_w1",    "rogue/graph objects/gear/ca_cm_l1_sw_w1.mgraphobject" },
+    { "ca_cm_l1_sw_w2",    "rogue/graph objects/gear/ca_cm_l1_sw_w2.mgraphobject" },
+    { "ca_cm_l1_tox",      "rogue/graph objects/gear/ca_cm_l1_tox.mgraphobject" },
+    { "ca_cm_l1_ubi_gr",   "rogue/graph objects/gear/ca_cm_l1_ubi_gr.mgraphobject" },
+    { "ca_cm_l1_ubi_sc",   "rogue/graph objects/gear/ca_cm_l1_ubi_sc.mgraphobject" },
+    { "ca_cm_l1_uc_ge4",   "rogue/graph objects/gear/ca_cm_l1_uc_ge4.mgraphobject" },
+    { "ca_cm_l1_uc_phx",   "rogue/graph objects/gear/ca_cm_l1_uc_phx.mgraphobject" },
+    { "ca_cm_l1_ues_s1",   "rogue/graph objects/gear/ca_cm_l1_ues_s1.mgraphobject" },
+    { "ca_cm_l1_ues_s2",   "rogue/graph objects/gear/ca_cm_l1_ues_s2.mgraphobject" },
+    { "ca_cm_l1_ues_s3",   "rogue/graph objects/gear/ca_cm_l1_ues_s3.mgraphobject" },
+    { "ca_cm_l1_ues_tx",   "rogue/graph objects/gear/ca_cm_l1_ues_tx.mgraphobject" },
+    { "ca_cm_l1_ulc_haz",  "rogue/graph objects/gear/ca_cm_l1_ulc_haz.mgraphobject" },
+    { "ca_cm_l1_ulc_hun",  "rogue/graph objects/gear/ca_cm_l1_ulc_hun.mgraphobject" },
+    { "ca_cm_l1_ulc_rb6",  "rogue/graph objects/gear/ca_cm_l1_ulc_rb6.mgraphobject" },
+    { "ca_cm_l1_ulc_up",   "rogue/graph objects/gear/ca_cm_l1_ulc_up.mgraphobject" },
+    { "ca_cm_l1_usm_de",   "rogue/graph objects/gear/ca_cm_l1_usm_de.mgraphobject" },
+    { "ca_cm_l1_usm_sn",   "rogue/graph objects/gear/ca_cm_l1_usm_sn.mgraphobject" },
+    { "ca_cm_l1_usm_ur",   "rogue/graph objects/gear/ca_cm_l1_usm_ur.mgraphobject" },
+    { "ca_cm_l1_usm_wl",   "rogue/graph objects/gear/ca_cm_l1_usm_wl.mgraphobject" },
+    { "ca_cm_l1_uw_dar",   "rogue/graph objects/gear/ca_cm_l1_uw_dar.mgraphobject" },
+};
+
+static const SkinnedMeshManager::ModelSwapEntry s_FootModels_[] =
+{
+    { "ca_cm_f_a",              "rogue/graph objects/gear/ca_cm_f_a.mgraphobject" },
+    { "ca_cm_f_b",              "rogue/graph objects/gear/ca_cm_f_b.mgraphobject" },
+    { "ca_cm_f_bg_riot",        "rogue/graph objects/gear/ca_cm_f_bg_riot.mgraphobject" },
+    { "ca_cm_f_c",              "rogue/graph objects/gear/ca_cm_f_c.mgraphobject" },
+    { "ca_cm_f_chase",          "rogue/graph objects/gear/ca_cm_f_chase.mgraphobject" },
+    { "ca_cm_f_chase02",        "rogue/graph objects/gear/ca_cm_f_chase02.mgraphobject" },
+    { "ca_cm_f_d",              "rogue/graph objects/gear/ca_cm_f_d.mgraphobject" },
+    { "ca_cm_f_e",              "rogue/graph objects/gear/ca_cm_f_e.mgraphobject" },
+    { "ca_cm_f_exo_ast",        "rogue/graph objects/gear/ca_cm_f_exo_ast.mgraphobject" },
+    { "ca_cm_f_exo_ast2",       "rogue/graph objects/gear/ca_cm_f_exo_ast2.mgraphobject" },
+    { "ca_cm_f_f",              "rogue/graph objects/gear/ca_cm_f_f.mgraphobject" },
+    { "ca_cm_f_fac_cln",        "rogue/graph objects/gear/ca_cm_f_fac_cln.mgraphobject" },
+    { "ca_cm_f_fac_jtf",        "rogue/graph objects/gear/ca_cm_f_fac_jtf.mgraphobject" },
+    { "ca_cm_f_fac_lmb",        "rogue/graph objects/gear/ca_cm_f_fac_lmb.mgraphobject" },
+    { "ca_cm_f_fac_lmb3",       "rogue/graph objects/gear/ca_cm_f_fac_lmb3.mgraphobject" },
+    { "ca_cm_f_fac_rkr",        "rogue/graph objects/gear/ca_cm_f_fac_rkr.mgraphobject" },
+    { "ca_cm_f_g",              "rogue/graph objects/gear/ca_cm_f_g.mgraphobject" },
+    { "ca_cm_f_gs_fm",          "rogue/graph objects/gear/ca_cm_f_gs_fm.mgraphobject" },
+    { "ca_cm_f_gv_al",          "rogue/graph objects/gear/ca_cm_f_gv_al.mgraphobject" },
+    { "ca_cm_f_gv_de",          "rogue/graph objects/gear/ca_cm_f_gv_de.mgraphobject" },
+    { "ca_cm_f_gv_fc",          "rogue/graph objects/gear/ca_cm_f_gv_fc.mgraphobject" },
+    { "ca_cm_f_gv_fl",          "rogue/graph objects/gear/ca_cm_f_gv_fl.mgraphobject" },
+    { "ca_cm_f_gv_np",          "rogue/graph objects/gear/ca_cm_f_gv_np.mgraphobject" },
+    { "ca_cm_f_gv_rc",          "rogue/graph objects/gear/ca_cm_f_gv_rc.mgraphobject" },
+    { "ca_cm_f_gv_sc",          "rogue/graph objects/gear/ca_cm_f_gv_sc.mgraphobject" },
+    { "ca_cm_f_gv_sk",          "rogue/graph objects/gear/ca_cm_f_gv_sk.mgraphobject" },
+    { "ca_cm_f_gv_st",          "rogue/graph objects/gear/ca_cm_f_gv_st.mgraphobject" },
+    { "ca_cm_f_gv_tc",          "rogue/graph objects/gear/ca_cm_f_gv_tc.mgraphobject" },
+    { "ca_cm_f_h",              "rogue/graph objects/gear/ca_cm_f_h.mgraphobject" },
+    { "ca_cm_f_hun_ft",         "rogue/graph objects/gear/ca_cm_f_hun_ft.mgraphobject" },
+    { "ca_cm_f_i",              "rogue/graph objects/gear/ca_cm_f_i.mgraphobject" },
+    { "ca_cm_f_j",              "rogue/graph objects/gear/ca_cm_f_j.mgraphobject" },
+    { "ca_cm_f_k",              "rogue/graph objects/gear/ca_cm_f_k.mgraphobject" },
+    { "ca_cm_f_l",              "rogue/graph objects/gear/ca_cm_f_l.mgraphobject" },
+    { "ca_cm_f_l_dlc1",         "rogue/graph objects/gear/ca_cm_f_l_dlc1.mgraphobject" },
+    { "ca_cm_f_lon_st",         "rogue/graph objects/gear/ca_cm_f_lon_st.mgraphobject" },
+    { "ca_cm_f_lsa",            "rogue/graph objects/gear/ca_cm_f_lsa.mgraphobject" },
+    { "ca_cm_f_lsb",            "rogue/graph objects/gear/ca_cm_f_lsb.mgraphobject" },
+    { "ca_cm_f_m",              "rogue/graph objects/gear/ca_cm_f_m.mgraphobject" },
+    { "ca_cm_f_mb2_a",          "rogue/graph objects/gear/ca_cm_f_mb2_a.mgraphobject" },
+    { "ca_cm_f_mb2_b",          "rogue/graph objects/gear/ca_cm_f_mb2_b.mgraphobject" },
+    { "ca_cm_f_mb2_c",          "rogue/graph objects/gear/ca_cm_f_mb2_c.mgraphobject" },
+    { "ca_cm_f_mb2_d",          "rogue/graph objects/gear/ca_cm_f_mb2_d.mgraphobject" },
+    { "ca_cm_f_mbox_fisher_01", "rogue/graph objects/gear/ca_cm_f_mbox_fisher_01.mgraphobject" },
+    { "ca_cm_f_mbox_miner_01",  "rogue/graph objects/gear/ca_cm_f_mbox_miner_01.mgraphobject" },
+    { "ca_cm_f_mbox_punk_01",   "rogue/graph objects/gear/ca_cm_f_mbox_punk_01.mgraphobject" },
+    { "ca_cm_f_mbox_snow_01",   "rogue/graph objects/gear/ca_cm_f_mbox_snow_01.mgraphobject" },
+    { "ca_cm_f_mc_gn",          "rogue/graph objects/gear/ca_cm_f_mc_gn.mgraphobject" },
+    { "ca_cm_f_mc_rt",          "rogue/graph objects/gear/ca_cm_f_mc_rt.mgraphobject" },
+    { "ca_cm_f_mil_df",         "rogue/graph objects/gear/ca_cm_f_mil_df.mgraphobject" },
+    { "ca_cm_f_mil_dm",         "rogue/graph objects/gear/ca_cm_f_mil_dm.mgraphobject" },
+    { "ca_cm_f_mil_pj",         "rogue/graph objects/gear/ca_cm_f_mil_pj.mgraphobject" },
+    { "ca_cm_f_mil_sn",         "rogue/graph objects/gear/ca_cm_f_mil_sn.mgraphobject" },
+    { "ca_cm_f_mm",             "rogue/graph objects/gear/ca_cm_f_mm.mgraphobject" },
+    { "ca_cm_f_mt_rs",          "rogue/graph objects/gear/ca_cm_f_mt_rs.mgraphobject" },
+    { "ca_cm_f_n",              "rogue/graph objects/gear/ca_cm_f_n.mgraphobject" },
+    { "ca_cm_f_peu_mi",         "rogue/graph objects/gear/ca_cm_f_peu_mi.mgraphobject" },
+    { "ca_cm_f_peu_ny",         "rogue/graph objects/gear/ca_cm_f_peu_ny.mgraphobject" },
+    { "ca_cm_f_pmc2_01",        "rogue/graph objects/gear/ca_cm_f_pmc2_01.mgraphobject" },
+    { "ca_cm_f_pmc2_02",        "rogue/graph objects/gear/ca_cm_f_pmc2_02.mgraphobject" },
+    { "ca_cm_f_pmc_01",         "rogue/graph objects/gear/ca_cm_f_pmc_01.mgraphobject" },
+    { "ca_cm_f_pmc_02",         "rogue/graph objects/gear/ca_cm_f_pmc_02.mgraphobject" },
+    { "ca_cm_f_pmc_03",         "rogue/graph objects/gear/ca_cm_f_pmc_03.mgraphobject" },
+    { "ca_cm_f_pmc_04",         "rogue/graph objects/gear/ca_cm_f_pmc_04.mgraphobject" },
+    { "ca_cm_f_pol_sh",         "rogue/graph objects/gear/ca_cm_f_pol_sh.mgraphobject" },
+    { "ca_cm_f_pol_sw",         "rogue/graph objects/gear/ca_cm_f_pol_sw.mgraphobject" },
+    { "ca_cm_f_pr_mk",          "rogue/graph objects/gear/ca_cm_f_pr_mk.mgraphobject" },
+    { "ca_cm_f_snta",           "rogue/graph objects/gear/ca_cm_f_snta.mgraphobject" },
+    { "ca_cm_f_spo_bp",         "rogue/graph objects/gear/ca_cm_f_spo_bp.mgraphobject" },
+    { "ca_cm_f_spo_hp",         "rogue/graph objects/gear/ca_cm_f_spo_hp.mgraphobject" },
+    { "ca_cm_f_spo_rd",         "rogue/graph objects/gear/ca_cm_f_spo_rd.mgraphobject" },
+    { "ca_cm_f_spo_sb",         "rogue/graph objects/gear/ca_cm_f_spo_sb.mgraphobject" },
+    { "ca_cm_f_sw_e1",          "rogue/graph objects/gear/ca_cm_f_sw_e1.mgraphobject" },
+    { "ca_cm_f_sw_e2",          "rogue/graph objects/gear/ca_cm_f_sw_e2.mgraphobject" },
+    { "ca_cm_f_sw_w1",          "rogue/graph objects/gear/ca_cm_f_sw_w1.mgraphobject" },
+    { "ca_cm_f_sw_w2",          "rogue/graph objects/gear/ca_cm_f_sw_w2.mgraphobject" },
+    { "ca_cm_f_tox",            "rogue/graph objects/gear/ca_cm_f_tox.mgraphobject" },
+    { "ca_cm_f_ubi_gr",         "rogue/graph objects/gear/ca_cm_f_ubi_gr.mgraphobject" },
+    { "ca_cm_f_ubi_sc",         "rogue/graph objects/gear/ca_cm_f_ubi_sc.mgraphobject" },
+    { "ca_cm_f_uc_ge4",         "rogue/graph objects/gear/ca_cm_f_uc_ge4.mgraphobject" },
+    { "ca_cm_f_uc_phx",         "rogue/graph objects/gear/ca_cm_f_uc_phx.mgraphobject" },
+    { "ca_cm_f_ues_tx",         "rogue/graph objects/gear/ca_cm_f_ues_tx.mgraphobject" },
+    { "ca_cm_f_ulc_emt",        "rogue/graph objects/gear/ca_cm_f_ulc_emt.mgraphobject" },
+    { "ca_cm_f_ulc_fire",       "rogue/graph objects/gear/ca_cm_f_ulc_fire.mgraphobject" },
+    { "ca_cm_f_ulc_haz",        "rogue/graph objects/gear/ca_cm_f_ulc_haz.mgraphobject" },
+    { "ca_cm_f_ulc_hun",        "rogue/graph objects/gear/ca_cm_f_ulc_hun.mgraphobject" },
+    { "ca_cm_f_ulc_jtf",        "rogue/graph objects/gear/ca_cm_f_ulc_jtf.mgraphobject" },
+    { "ca_cm_f_ulc_pol",        "rogue/graph objects/gear/ca_cm_f_ulc_pol.mgraphobject" },
+    { "ca_cm_f_ulc_sur",        "rogue/graph objects/gear/ca_cm_f_ulc_sur.mgraphobject" },
+    { "ca_cm_f_ulc_up",         "rogue/graph objects/gear/ca_cm_f_ulc_up.mgraphobject" },
+    { "ca_cm_f_usm_de",         "rogue/graph objects/gear/ca_cm_f_usm_de.mgraphobject" },
+    { "ca_cm_f_usm_sn",         "rogue/graph objects/gear/ca_cm_f_usm_sn.mgraphobject" },
+    { "ca_cm_f_usm_ur",         "rogue/graph objects/gear/ca_cm_f_usm_ur.mgraphobject" },
+    { "ca_cm_f_usm_wl",         "rogue/graph objects/gear/ca_cm_f_usm_wl.mgraphobject" },
+    { "ca_cm_f_uw_dar",         "rogue/graph objects/gear/ca_cm_f_uw_dar.mgraphobject" },
+    { "ca_cm_f_uw_poi",         "rogue/graph objects/gear/ca_cm_f_uw_poi.mgraphobject" },
+    { "ca_cm_f_uw_pun",         "rogue/graph objects/gear/ca_cm_f_uw_pun.mgraphobject" },
+    { "ca_cm_f_uw_rav",         "rogue/graph objects/gear/ca_cm_f_uw_rav.mgraphobject" },
+};
+
+static const SkinnedMeshManager::ModelSwapEntry s_ScarfModels_[] =
+{
+    { "ca_cm_s_a",               "rogue/graph objects/gear/ca_cm_s_a.mgraphobject" },
+    { "ca_cm_s_b",               "rogue/graph objects/gear/ca_cm_s_b.mgraphobject" },
+    { "ca_cm_s_bg_riot",         "rogue/graph objects/gear/ca_cm_s_bg_riot.mgraphobject" },
+    { "ca_cm_s_c",               "rogue/graph objects/gear/ca_cm_s_c.mgraphobject" },
+    { "ca_cm_s_chase",           "rogue/graph objects/gear/ca_cm_s_chase.mgraphobject" },
+    { "ca_cm_s_d",               "rogue/graph objects/gear/ca_cm_s_d.mgraphobject" },
+    { "ca_cm_s_e",               "rogue/graph objects/gear/ca_cm_s_e.mgraphobject" },
+    { "ca_cm_s_exo_ast",         "rogue/graph objects/gear/ca_cm_s_exo_ast.mgraphobject" },
+    { "ca_cm_s_exo_ast2",        "rogue/graph objects/gear/ca_cm_s_exo_ast2.mgraphobject" },
+    { "ca_cm_s_f",               "rogue/graph objects/gear/ca_cm_s_f.mgraphobject" },
+    { "ca_cm_s_fac_cln",         "rogue/graph objects/gear/ca_cm_s_fac_cln.mgraphobject" },
+    { "ca_cm_s_fac_jtf",         "rogue/graph objects/gear/ca_cm_s_fac_jtf.mgraphobject" },
+    { "ca_cm_s_fac_lmb",         "rogue/graph objects/gear/ca_cm_s_fac_lmb.mgraphobject" },
+    { "ca_cm_s_fac_lmb3",        "rogue/graph objects/gear/ca_cm_s_fac_lmb3.mgraphobject" },
+    { "ca_cm_s_g",               "rogue/graph objects/gear/ca_cm_s_g.mgraphobject" },
+    { "ca_cm_s_g_dlc1",          "rogue/graph objects/gear/ca_cm_s_g_dlc1.mgraphobject" },
+    { "ca_cm_s_gs_fm",           "rogue/graph objects/gear/ca_cm_s_gs_fm.mgraphobject" },
+    { "ca_cm_s_gv_al",           "rogue/graph objects/gear/ca_cm_s_gv_al.mgraphobject" },
+    { "ca_cm_s_gv_fc",           "rogue/graph objects/gear/ca_cm_s_gv_fc.mgraphobject" },
+    { "ca_cm_s_gv_fl",           "rogue/graph objects/gear/ca_cm_s_gv_fl.mgraphobject" },
+    { "ca_cm_s_gv_np",           "rogue/graph objects/gear/ca_cm_s_gv_np.mgraphobject" },
+    { "ca_cm_s_gv_rc",           "rogue/graph objects/gear/ca_cm_s_gv_rc.mgraphobject" },
+    { "ca_cm_s_gv_sc",           "rogue/graph objects/gear/ca_cm_s_gv_sc.mgraphobject" },
+    { "ca_cm_s_gv_st",           "rogue/graph objects/gear/ca_cm_s_gv_st.mgraphobject" },
+    { "ca_cm_s_gv_tc",           "rogue/graph objects/gear/ca_cm_s_gv_tc.mgraphobject" },
+    { "ca_cm_s_h",               "rogue/graph objects/gear/ca_cm_s_h.mgraphobject" },
+    { "ca_cm_s_hun_ft",          "rogue/graph objects/gear/ca_cm_s_hun_ft.mgraphobject" },
+    { "ca_cm_s_lon_st",          "rogue/graph objects/gear/ca_cm_s_lon_st.mgraphobject" },
+    { "ca_cm_s_mb2_a",           "rogue/graph objects/gear/ca_cm_s_mb2_a.mgraphobject" },
+    { "ca_cm_s_mb2_b",           "rogue/graph objects/gear/ca_cm_s_mb2_b.mgraphobject" },
+    { "ca_cm_s_mb2_c",           "rogue/graph objects/gear/ca_cm_s_mb2_c.mgraphobject" },
+    { "ca_cm_s_mb2_d",           "rogue/graph objects/gear/ca_cm_s_mb2_d.mgraphobject" },
+    { "ca_cm_s_mbox_bolivia_01", "rogue/graph objects/gear/ca_cm_s_mbox_bolivia_01.mgraphobject" },
+    { "ca_cm_s_mbox_earmf_01",   "rogue/graph objects/gear/ca_cm_s_mbox_earmf_01.mgraphobject" },
+    { "ca_cm_s_mbox_headphn_01", "rogue/graph objects/gear/ca_cm_s_mbox_headphn_01.mgraphobject" },
+    { "ca_cm_s_mc_gn",           "rogue/graph objects/gear/ca_cm_s_mc_gn.mgraphobject" },
+    { "ca_cm_s_mc_rt",           "rogue/graph objects/gear/ca_cm_s_mc_rt.mgraphobject" },
+    { "ca_cm_s_mil_df",          "rogue/graph objects/gear/ca_cm_s_mil_df.mgraphobject" },
+    { "ca_cm_s_mil_dm",          "rogue/graph objects/gear/ca_cm_s_mil_dm.mgraphobject" },
+    { "ca_cm_s_mil_pj",          "rogue/graph objects/gear/ca_cm_s_mil_pj.mgraphobject" },
+    { "ca_cm_s_mil_sn",          "rogue/graph objects/gear/ca_cm_s_mil_sn.mgraphobject" },
+    { "ca_cm_s_pmc2_01",         "rogue/graph objects/gear/ca_cm_s_pmc2_01.mgraphobject" },
+    { "ca_cm_s_pmc2_02",         "rogue/graph objects/gear/ca_cm_s_pmc2_02.mgraphobject" },
+    { "ca_cm_s_pmc_01",          "rogue/graph objects/gear/ca_cm_s_pmc_01.mgraphobject" },
+    { "ca_cm_s_pmc_02",          "rogue/graph objects/gear/ca_cm_s_pmc_02.mgraphobject" },
+    { "ca_cm_s_pmc_03",          "rogue/graph objects/gear/ca_cm_s_pmc_03.mgraphobject" },
+    { "ca_cm_s_pol_mc",          "rogue/graph objects/gear/ca_cm_s_pol_mc.mgraphobject" },
+    { "ca_cm_s_pol_sw",          "rogue/graph objects/gear/ca_cm_s_pol_sw.mgraphobject" },
+    { "ca_cm_s_pr_mk_01",        "rogue/graph objects/gear/ca_cm_s_pr_mk_01.mgraphobject" },
+    { "ca_cm_s_snta",            "rogue/graph objects/gear/ca_cm_s_snta.mgraphobject" },
+    { "ca_cm_s_usm_de",          "rogue/graph objects/gear/ca_cm_s_usm_de.mgraphobject" },
+    { "ca_cm_s_usm_sn",          "rogue/graph objects/gear/ca_cm_s_usm_sn.mgraphobject" },
+    { "ca_cm_s_usm_ur",          "rogue/graph objects/gear/ca_cm_s_usm_ur.mgraphobject" },
+    { "ca_cm_s_usm_wl",          "rogue/graph objects/gear/ca_cm_s_usm_wl.mgraphobject" },
+    { "ca_cm_s_uw_dar",          "rogue/graph objects/gear/ca_cm_s_uw_dar.mgraphobject" },
+};
+
+static const SkinnedMeshManager::ModelSwapEntry s_PantsModels_[] =
+{
+    { "ca_cm_p_a",        "rogue/graph objects/gear/ca_cm_p_a.mgraphobject" },
+    { "ca_cm_p_b",        "rogue/graph objects/gear/ca_cm_p_b.mgraphobject" },
+    { "ca_cm_p_bg_riot",  "rogue/graph objects/gear/ca_cm_p_bg_riot.mgraphobject" },
+    { "ca_cm_p_c",        "rogue/graph objects/gear/ca_cm_p_c.mgraphobject" },
+    { "ca_cm_p_chase",    "rogue/graph objects/gear/ca_cm_p_chase.mgraphobject" },
+    { "ca_cm_p_chase02",  "rogue/graph objects/gear/ca_cm_p_chase02.mgraphobject" },
+    { "ca_cm_p_d",        "rogue/graph objects/gear/ca_cm_p_d.mgraphobject" },
+    { "ca_cm_p_d_dlc1",   "rogue/graph objects/gear/ca_cm_p_d_dlc1.mgraphobject" },
+    { "ca_cm_p_e",        "rogue/graph objects/gear/ca_cm_p_e.mgraphobject" },
+    { "ca_cm_p_exo_ast",  "rogue/graph objects/gear/ca_cm_p_exo_ast.mgraphobject" },
+    { "ca_cm_p_exo_ast2", "rogue/graph objects/gear/ca_cm_p_exo_ast2.mgraphobject" },
+    { "ca_cm_p_f",        "rogue/graph objects/gear/ca_cm_p_f.mgraphobject" },
+    { "ca_cm_p_fac_cln",  "rogue/graph objects/gear/ca_cm_p_fac_cln.mgraphobject" },
+    { "ca_cm_p_fac_jtf",  "rogue/graph objects/gear/ca_cm_p_fac_jtf.mgraphobject" },
+    { "ca_cm_p_fac_lmb",  "rogue/graph objects/gear/ca_cm_p_fac_lmb.mgraphobject" },
+    { "ca_cm_p_fac_lmb3", "rogue/graph objects/gear/ca_cm_p_fac_lmb3.mgraphobject" },
+    { "ca_cm_p_fac_rkr",  "rogue/graph objects/gear/ca_cm_p_fac_rkr.mgraphobject" },
+    { "ca_cm_p_g",        "rogue/graph objects/gear/ca_cm_p_g.mgraphobject" },
+    { "ca_cm_p_gs_fm",    "rogue/graph objects/gear/ca_cm_p_gs_fm.mgraphobject" },
+    { "ca_cm_p_gv_al",    "rogue/graph objects/gear/ca_cm_p_gv_al.mgraphobject" },
+    { "ca_cm_p_gv_de",    "rogue/graph objects/gear/ca_cm_p_gv_de.mgraphobject" },
+    { "ca_cm_p_gv_fc",    "rogue/graph objects/gear/ca_cm_p_gv_fc.mgraphobject" },
+    { "ca_cm_p_gv_fl",    "rogue/graph objects/gear/ca_cm_p_gv_fl.mgraphobject" },
+    { "ca_cm_p_gv_np",    "rogue/graph objects/gear/ca_cm_p_gv_np.mgraphobject" },
+    { "ca_cm_p_gv_rc",    "rogue/graph objects/gear/ca_cm_p_gv_rc.mgraphobject" },
+    { "ca_cm_p_gv_sc",    "rogue/graph objects/gear/ca_cm_p_gv_sc.mgraphobject" },
+    { "ca_cm_p_gv_sk",    "rogue/graph objects/gear/ca_cm_p_gv_sk.mgraphobject" },
+    { "ca_cm_p_gv_st",    "rogue/graph objects/gear/ca_cm_p_gv_st.mgraphobject" },
+    { "ca_cm_p_gv_tc",    "rogue/graph objects/gear/ca_cm_p_gv_tc.mgraphobject" },
+    { "ca_cm_p_h",        "rogue/graph objects/gear/ca_cm_p_h.mgraphobject" },
+    { "ca_cm_p_hun_ft",   "rogue/graph objects/gear/ca_cm_p_hun_ft.mgraphobject" },
+    { "ca_cm_p_i",        "rogue/graph objects/gear/ca_cm_p_i.mgraphobject" },
+    { "ca_cm_p_j",        "rogue/graph objects/gear/ca_cm_p_j.mgraphobject" },
+    { "ca_cm_p_lon_st",   "rogue/graph objects/gear/ca_cm_p_lon_st.mgraphobject" },
+    { "ca_cm_p_lsa",      "rogue/graph objects/gear/ca_cm_p_lsa.mgraphobject" },
+    { "ca_cm_p_lsb",      "rogue/graph objects/gear/ca_cm_p_lsb.mgraphobject" },
+    { "ca_cm_p_mb2_a",    "rogue/graph objects/gear/ca_cm_p_mb2_a.mgraphobject" },
+    { "ca_cm_p_mb2_b",    "rogue/graph objects/gear/ca_cm_p_mb2_b.mgraphobject" },
+    { "ca_cm_p_mb2_c",    "rogue/graph objects/gear/ca_cm_p_mb2_c.mgraphobject" },
+    { "ca_cm_p_mb2_d",    "rogue/graph objects/gear/ca_cm_p_mb2_d.mgraphobject" },
+    { "ca_cm_p_mc_gn",    "rogue/graph objects/gear/ca_cm_p_mc_gn.mgraphobject" },
+    { "ca_cm_p_mc_rt",    "rogue/graph objects/gear/ca_cm_p_mc_rt.mgraphobject" },
+    { "ca_cm_p_mil_df",   "rogue/graph objects/gear/ca_cm_p_mil_df.mgraphobject" },
+    { "ca_cm_p_mil_dm",   "rogue/graph objects/gear/ca_cm_p_mil_dm.mgraphobject" },
+    { "ca_cm_p_mil_pj",   "rogue/graph objects/gear/ca_cm_p_mil_pj.mgraphobject" },
+    { "ca_cm_p_mil_sn",   "rogue/graph objects/gear/ca_cm_p_mil_sn.mgraphobject" },
+    { "ca_cm_p_mm",       "rogue/graph objects/gear/ca_cm_p_mm.mgraphobject" },
+    { "ca_cm_p_mt_rs",    "rogue/graph objects/gear/ca_cm_p_mt_rs.mgraphobject" },
+    { "ca_cm_p_peu_fm",   "rogue/graph objects/gear/ca_cm_p_peu_fm.mgraphobject" },
+    { "ca_cm_p_peu_mi",   "rogue/graph objects/gear/ca_cm_p_peu_mi.mgraphobject" },
+    { "ca_cm_p_peu_ny",   "rogue/graph objects/gear/ca_cm_p_peu_ny.mgraphobject" },
+    { "ca_cm_p_peu_pc",   "rogue/graph objects/gear/ca_cm_p_peu_pc.mgraphobject" },
+    { "ca_cm_p_pmc2_01",  "rogue/graph objects/gear/ca_cm_p_pmc2_01.mgraphobject" },
+    { "ca_cm_p_pmc2_02",  "rogue/graph objects/gear/ca_cm_p_pmc2_02.mgraphobject" },
+    { "ca_cm_p_pmc_01",   "rogue/graph objects/gear/ca_cm_p_pmc_01.mgraphobject" },
+    { "ca_cm_p_pmc_02",   "rogue/graph objects/gear/ca_cm_p_pmc_02.mgraphobject" },
+    { "ca_cm_p_pmc_03",   "rogue/graph objects/gear/ca_cm_p_pmc_03.mgraphobject" },
+    { "ca_cm_p_pmc_04",   "rogue/graph objects/gear/ca_cm_p_pmc_04.mgraphobject" },
+    { "ca_cm_p_pol_mc",   "rogue/graph objects/gear/ca_cm_p_pol_mc.mgraphobject" },
+    { "ca_cm_p_pol_nt",   "rogue/graph objects/gear/ca_cm_p_pol_nt.mgraphobject" },
+    { "ca_cm_p_pol_sh",   "rogue/graph objects/gear/ca_cm_p_pol_sh.mgraphobject" },
+    { "ca_cm_p_pol_sw",   "rogue/graph objects/gear/ca_cm_p_pol_sw.mgraphobject" },
+    { "ca_cm_p_pr_mk",    "rogue/graph objects/gear/ca_cm_p_pr_mk.mgraphobject" },
+    { "ca_cm_p_snta",     "rogue/graph objects/gear/ca_cm_p_snta.mgraphobject" },
+    { "ca_cm_p_spo_bp",   "rogue/graph objects/gear/ca_cm_p_spo_bp.mgraphobject" },
+    { "ca_cm_p_spo_hp",   "rogue/graph objects/gear/ca_cm_p_spo_hp.mgraphobject" },
+    { "ca_cm_p_spo_rd",   "rogue/graph objects/gear/ca_cm_p_spo_rd.mgraphobject" },
+    { "ca_cm_p_spo_sb",   "rogue/graph objects/gear/ca_cm_p_spo_sb.mgraphobject" },
+    { "ca_cm_p_sss",      "rogue/graph objects/gear/ca_cm_p_sss.mgraphobject" },
+    { "ca_cm_p_sw_e1",    "rogue/graph objects/gear/ca_cm_p_sw_e1.mgraphobject" },
+    { "ca_cm_p_sw_e2",    "rogue/graph objects/gear/ca_cm_p_sw_e2.mgraphobject" },
+    { "ca_cm_p_sw_w1",    "rogue/graph objects/gear/ca_cm_p_sw_w1.mgraphobject" },
+    { "ca_cm_p_sw_w2",    "rogue/graph objects/gear/ca_cm_p_sw_w2.mgraphobject" },
+    { "ca_cm_p_tox",      "rogue/graph objects/gear/ca_cm_p_tox.mgraphobject" },
+    { "ca_cm_p_ubi_gr",   "rogue/graph objects/gear/ca_cm_p_ubi_gr.mgraphobject" },
+    { "ca_cm_p_ubi_sc",   "rogue/graph objects/gear/ca_cm_p_ubi_sc.mgraphobject" },
+    { "ca_cm_p_uc_ge4",   "rogue/graph objects/gear/ca_cm_p_uc_ge4.mgraphobject" },
+    { "ca_cm_p_uc_phx",   "rogue/graph objects/gear/ca_cm_p_uc_phx.mgraphobject" },
+    { "ca_cm_p_ues_s1",   "rogue/graph objects/gear/ca_cm_p_ues_s1.mgraphobject" },
+    { "ca_cm_p_ues_s2",   "rogue/graph objects/gear/ca_cm_p_ues_s2.mgraphobject" },
+    { "ca_cm_p_ues_s3",   "rogue/graph objects/gear/ca_cm_p_ues_s3.mgraphobject" },
+    { "ca_cm_p_ues_tx",   "rogue/graph objects/gear/ca_cm_p_ues_tx.mgraphobject" },
+    { "ca_cm_p_ulc_emt",  "rogue/graph objects/gear/ca_cm_p_ulc_emt.mgraphobject" },
+    { "ca_cm_p_ulc_fire", "rogue/graph objects/gear/ca_cm_p_ulc_fire.mgraphobject" },
+    { "ca_cm_p_ulc_haz",  "rogue/graph objects/gear/ca_cm_p_ulc_haz.mgraphobject" },
+    { "ca_cm_p_ulc_hun",  "rogue/graph objects/gear/ca_cm_p_ulc_hun.mgraphobject" },
+    { "ca_cm_p_ulc_jtf",  "rogue/graph objects/gear/ca_cm_p_ulc_jtf.mgraphobject" },
+    { "ca_cm_p_ulc_pol",  "rogue/graph objects/gear/ca_cm_p_ulc_pol.mgraphobject" },
+    { "ca_cm_p_ulc_rb6",  "rogue/graph objects/gear/ca_cm_p_ulc_rb6.mgraphobject" },
+    { "ca_cm_p_ulc_up",   "rogue/graph objects/gear/ca_cm_p_ulc_up.mgraphobject" },
+    { "ca_cm_p_usm_des",  "rogue/graph objects/gear/ca_cm_p_usm_des.mgraphobject" },
+    { "ca_cm_p_usm_sn",   "rogue/graph objects/gear/ca_cm_p_usm_sn.mgraphobject" },
+    { "ca_cm_p_usm_ur",   "rogue/graph objects/gear/ca_cm_p_usm_ur.mgraphobject" },
+    { "ca_cm_p_usm_wl",   "rogue/graph objects/gear/ca_cm_p_usm_wl.mgraphobject" },
+    { "ca_cm_p_uw_dar",   "rogue/graph objects/gear/ca_cm_p_uw_dar.mgraphobject" },
+    { "ca_cm_p_uw_pun",   "rogue/graph objects/gear/ca_cm_p_uw_pun.mgraphobject" },
+};
+
+static const SkinnedMeshManager::ModelSwapEntry s_JacketModels_[] =
+{
+    { "ca_cm_l3_a",               "rogue/graph objects/gear/ca_cm_l3_a.mgraphobject" },
+    { "ca_cm_l3_b",               "rogue/graph objects/gear/ca_cm_l3_b.mgraphobject" },
+    { "ca_cm_l3_bg_riot",         "rogue/graph objects/gear/ca_cm_l3_bg_riot.mgraphobject" },
+    { "ca_cm_l3_c",               "rogue/graph objects/gear/ca_cm_l3_c.mgraphobject" },
+    { "ca_cm_l3_chase",           "rogue/graph objects/gear/ca_cm_l3_chase.mgraphobject" },
+    { "ca_cm_l3_chase02",         "rogue/graph objects/gear/ca_cm_l3_chase02.mgraphobject" },
+    { "ca_cm_l3_d",               "rogue/graph objects/gear/ca_cm_l3_d.mgraphobject" },
+    { "ca_cm_l3_e",               "rogue/graph objects/gear/ca_cm_l3_e.mgraphobject" },
+    { "ca_cm_l3_f",               "rogue/graph objects/gear/ca_cm_l3_f.mgraphobject" },
+    { "ca_cm_l3_fac_cln",         "rogue/graph objects/gear/ca_cm_l3_fac_cln.mgraphobject" },
+    { "ca_cm_l3_fac_jtf",         "rogue/graph objects/gear/ca_cm_l3_fac_jtf.mgraphobject" },
+    { "ca_cm_l3_fac_lmb",         "rogue/graph objects/gear/ca_cm_l3_fac_lmb.mgraphobject" },
+    { "ca_cm_l3_fac_lmb3",        "rogue/graph objects/gear/ca_cm_l3_fac_lmb3.mgraphobject" },
+    { "ca_cm_l3_fac_rkr",         "rogue/graph objects/gear/ca_cm_l3_fac_rkr.mgraphobject" },
+    { "ca_cm_l3_g",               "rogue/graph objects/gear/ca_cm_l3_g.mgraphobject" },
+    { "ca_cm_l3_h",               "rogue/graph objects/gear/ca_cm_l3_h.mgraphobject" },
+    { "ca_cm_l3_i",               "rogue/graph objects/gear/ca_cm_l3_i.mgraphobject" },
+    { "ca_cm_l3_j",               "rogue/graph objects/gear/ca_cm_l3_j.mgraphobject" },
+    { "ca_cm_l3_k",               "rogue/graph objects/gear/ca_cm_l3_k.mgraphobject" },
+    { "ca_cm_l3_l",               "rogue/graph objects/gear/ca_cm_l3_l.mgraphobject" },
+    { "ca_cm_l3_lon_st",          "rogue/graph objects/gear/ca_cm_l3_lon_st.mgraphobject" },
+    { "ca_cm_l3_lsa",             "rogue/graph objects/gear/ca_cm_l3_lsa.mgraphobject" },
+    { "ca_cm_l3_lsb",             "rogue/graph objects/gear/ca_cm_l3_lsb.mgraphobject" },
+    { "ca_cm_l3_m",               "rogue/graph objects/gear/ca_cm_l3_m.mgraphobject" },
+    { "ca_cm_l3_mb1_a",           "rogue/graph objects/gear/ca_cm_l3_mb1_a.mgraphobject" },
+    { "ca_cm_l3_mb1_c",           "rogue/graph objects/gear/ca_cm_l3_mb1_c.mgraphobject" },
+    { "ca_cm_l3_mb1_j2",          "rogue/graph objects/gear/ca_cm_l3_mb1_j2.mgraphobject" },
+    { "ca_cm_l3_mb2_a",           "rogue/graph objects/gear/ca_cm_l3_mb2_a.mgraphobject" },
+    { "ca_cm_l3_mb2_b",           "rogue/graph objects/gear/ca_cm_l3_mb2_b.mgraphobject" },
+    { "ca_cm_l3_mb2_c",           "rogue/graph objects/gear/ca_cm_l3_mb2_c.mgraphobject" },
+    { "ca_cm_l3_mb2_d",           "rogue/graph objects/gear/ca_cm_l3_mb2_d.mgraphobject" },
+    { "ca_cm_l3_mb3_a",           "rogue/graph objects/gear/ca_cm_l3_mb3_a.mgraphobject" },
+    { "ca_cm_l3_mb3_b",           "rogue/graph objects/gear/ca_cm_l3_mb3_b.mgraphobject" },
+    { "ca_cm_l3_mb3_c",           "rogue/graph objects/gear/ca_cm_l3_mb3_c.mgraphobject" },
+    { "ca_cm_l3_mb4_a",           "rogue/graph objects/gear/ca_cm_l3_mb4_a.mgraphobject" },
+    { "ca_cm_l3_mb4_b",           "rogue/graph objects/gear/ca_cm_l3_mb4_b.mgraphobject" },
+    { "ca_cm_l3_mb4_c",           "rogue/graph objects/gear/ca_cm_l3_mb4_c.mgraphobject" },
+    { "ca_cm_l3_mb4_d",           "rogue/graph objects/gear/ca_cm_l3_mb4_d.mgraphobject" },
+    { "ca_cm_l3_mb4_e",           "rogue/graph objects/gear/ca_cm_l3_mb4_e.mgraphobject" },
+    { "ca_cm_l3_mb5_a",           "rogue/graph objects/gear/ca_cm_l3_mb5_a.mgraphobject" },
+    { "ca_cm_l3_mb5_b",           "rogue/graph objects/gear/ca_cm_l3_mb5_b.mgraphobject" },
+    { "ca_cm_l3_mb5_c",           "rogue/graph objects/gear/ca_cm_l3_mb5_c.mgraphobject" },
+    { "ca_cm_l3_mb5_d",           "rogue/graph objects/gear/ca_cm_l3_mb5_d.mgraphobject" },
+    { "ca_cm_l3_mb5_e",           "rogue/graph objects/gear/ca_cm_l3_mb5_e.mgraphobject" },
+    { "ca_cm_l3_mbox_ghillie_01", "rogue/graph objects/gear/ca_cm_l3_mbox_ghillie_01.mgraphobject" },
+    { "ca_cm_l3_mbox_reflex_01",  "rogue/graph objects/gear/ca_cm_l3_mbox_reflex_01.mgraphobject" },
+    { "ca_cm_l3_mbox_varsity_01", "rogue/graph objects/gear/ca_cm_l3_mbox_varsity_01.mgraphobject" },
+    { "ca_cm_l3_mc_gn",           "rogue/graph objects/gear/ca_cm_l3_mc_gn.mgraphobject" },
+    { "ca_cm_l3_mc_rt",           "rogue/graph objects/gear/ca_cm_l3_mc_rt.mgraphobject" },
+    { "ca_cm_l3_mil_df",          "rogue/graph objects/gear/ca_cm_l3_mil_df.mgraphobject" },
+    { "ca_cm_l3_mil_dm",          "rogue/graph objects/gear/ca_cm_l3_mil_dm.mgraphobject" },
+    { "ca_cm_l3_mil_pj",          "rogue/graph objects/gear/ca_cm_l3_mil_pj.mgraphobject" },
+    { "ca_cm_l3_mil_sn",          "rogue/graph objects/gear/ca_cm_l3_mil_sn.mgraphobject" },
+    { "ca_cm_l3_mt_rs",           "rogue/graph objects/gear/ca_cm_l3_mt_rs.mgraphobject" },
+    { "ca_cm_l3_n",               "rogue/graph objects/gear/ca_cm_l3_n.mgraphobject" },
+    { "ca_cm_l3_o",               "rogue/graph objects/gear/ca_cm_l3_o.mgraphobject" },
+    { "ca_cm_l3_peu_fm",          "rogue/graph objects/gear/ca_cm_l3_peu_fm.mgraphobject" },
+    { "ca_cm_l3_peu_mi",          "rogue/graph objects/gear/ca_cm_l3_peu_mi.mgraphobject" },
+    { "ca_cm_l3_peu_ny",          "rogue/graph objects/gear/ca_cm_l3_peu_ny.mgraphobject" },
+    { "ca_cm_l3_peu_pc",          "rogue/graph objects/gear/ca_cm_l3_peu_pc.mgraphobject" },
+    { "ca_cm_l3_pol_mc",          "rogue/graph objects/gear/ca_cm_l3_pol_mc.mgraphobject" },
+    { "ca_cm_l3_pol_nt",          "rogue/graph objects/gear/ca_cm_l3_pol_nt.mgraphobject" },
+    { "ca_cm_l3_pol_sh",          "rogue/graph objects/gear/ca_cm_l3_pol_sh.mgraphobject" },
+    { "ca_cm_l3_pol_sw",          "rogue/graph objects/gear/ca_cm_l3_pol_sw.mgraphobject" },
+    { "ca_cm_l3_snta",            "rogue/graph objects/gear/ca_cm_l3_snta.mgraphobject" },
+    { "ca_cm_l3_spo_bp",          "rogue/graph objects/gear/ca_cm_l3_spo_bp.mgraphobject" },
+    { "ca_cm_l3_spo_hp",          "rogue/graph objects/gear/ca_cm_l3_spo_hp.mgraphobject" },
+    { "ca_cm_l3_spo_rd",          "rogue/graph objects/gear/ca_cm_l3_spo_rd.mgraphobject" },
+    { "ca_cm_l3_spo_sb",          "rogue/graph objects/gear/ca_cm_l3_spo_sb.mgraphobject" },
+    { "ca_cm_l3_sw_e1",           "rogue/graph objects/gear/ca_cm_l3_sw_e1.mgraphobject" },
+    { "ca_cm_l3_sw_e2",           "rogue/graph objects/gear/ca_cm_l3_sw_e2.mgraphobject" },
+    { "ca_cm_l3_sw_w1",           "rogue/graph objects/gear/ca_cm_l3_sw_w1.mgraphobject" },
+    { "ca_cm_l3_sw_w2",           "rogue/graph objects/gear/ca_cm_l3_sw_w2.mgraphobject" },
+    { "ca_cm_l3_t",               "rogue/graph objects/gear/ca_cm_l3_t.mgraphobject" },
+    { "ca_cm_l3_t4",              "rogue/graph objects/gear/ca_cm_l3_t4.mgraphobject" },
+    { "ca_cm_l3_uc_phx",          "rogue/graph objects/gear/ca_cm_l3_uc_phx.mgraphobject" },
+    { "ca_cm_l3_ues_s1",          "rogue/graph objects/gear/ca_cm_l3_ues_s1.mgraphobject" },
+    { "ca_cm_l3_ues_s2",          "rogue/graph objects/gear/ca_cm_l3_ues_s2.mgraphobject" },
+    { "ca_cm_l3_ues_s3",          "rogue/graph objects/gear/ca_cm_l3_ues_s3.mgraphobject" },
+    { "ca_cm_l3_ues_tx",          "rogue/graph objects/gear/ca_cm_l3_ues_tx.mgraphobject" },
+    { "ca_cm_l3_ulc_cent",        "rogue/graph objects/gear/ca_cm_l3_ulc_cent.mgraphobject" },
+    { "ca_cm_l3_ulc_emt",         "rogue/graph objects/gear/ca_cm_l3_ulc_emt.mgraphobject" },
+    { "ca_cm_l3_ulc_fir",         "rogue/graph objects/gear/ca_cm_l3_ulc_fir.mgraphobject" },
+    { "ca_cm_l3_ulc_jtf",         "rogue/graph objects/gear/ca_cm_l3_ulc_jtf.mgraphobject" },
+    { "ca_cm_l3_ulc_pol",         "rogue/graph objects/gear/ca_cm_l3_ulc_pol.mgraphobject" },
+    { "ca_cm_l3_ulc_sbow",        "rogue/graph objects/gear/ca_cm_l3_ulc_sbow.mgraphobject" },
+    { "ca_cm_l3_ulc_sur",         "rogue/graph objects/gear/ca_cm_l3_ulc_sur.mgraphobject" },
+    { "ca_cm_l3_ulc_up",          "rogue/graph objects/gear/ca_cm_l3_ulc_up.mgraphobject" },
+    { "ca_cm_l3_usm_de",          "rogue/graph objects/gear/ca_cm_l3_usm_de.mgraphobject" },
+    { "ca_cm_l3_usm_sn",          "rogue/graph objects/gear/ca_cm_l3_usm_sn.mgraphobject" },
+    { "ca_cm_l3_usm_ur",          "rogue/graph objects/gear/ca_cm_l3_usm_ur.mgraphobject" },
+    { "ca_cm_l3_usm_wl",          "rogue/graph objects/gear/ca_cm_l3_usm_wl.mgraphobject" },
+    { "ca_cm_l3_uw_dar",          "rogue/graph objects/gear/ca_cm_l3_uw_dar.mgraphobject" },
+    { "ca_cm_l3_uw_pun",          "rogue/graph objects/gear/ca_cm_l3_uw_pun.mgraphobject" },
+    { "ca_cm_l3_v",               "rogue/graph objects/gear/ca_cm_l3_v.mgraphobject" },
+    { "ca_cm_l3_x",               "rogue/graph objects/gear/ca_cm_l3_x.mgraphobject" },
+    { "ca_cm_l3_x_dlc1",          "rogue/graph objects/gear/ca_cm_l3_x_dlc1.mgraphobject" },
+};
+
+static const SkinnedMeshManager::ModelSwapEntry s_CosmeticMaskModels_[] =
+{
+    { "ch_pm_maskonly_tox",               "rogue/graph objects/gear/ch_pm_maskonly_tox.mgraphobject" },
+    { "ch_pm_mask_tox_04",               "rogue/graph objects/gear/ch_pm_mask_tox_04.mgraphobject" },
+    { "ch_pm_mask_tox_03",               "rogue/graph objects/gear/ch_pm_mask_tox_03.mgraphobject" },
+    { "ch_pm_mask_tox_02",               "rogue/graph objects/gear/ch_pm_mask_tox_02.mgraphobject" },
+    { "ch_pm_mask_tox_02",               "rogue/graph objects/gear/ch_pm_mask_tox_02.mgraphobject" },
+    { "ch_pm_mask_tox_01",               "rogue/graph objects/gear/ch_pm_mask_tox_01.mgraphobject" },
+    { "ch_pm_mask_preorder02",               "rogue/graph objects/gear/ch_pm_mask_preorder02.mgraphobject" },
+    { "ch_pm_mask_mm_03",               "rogue/graph objects/gear/ch_pm_mask_mm_03.mgraphobject" },
+    { "ch_pm_mask_preorder01",               "rogue/graph objects/gear/ch_pm_mask_preorder01.mgraphobject" },
+    { "ch_pm_mask_mm_02",               "rogue/graph objects/gear/ch_pm_mask_mm_02.mgraphobject" },
+    { "ch_pm_mask_mm_01",               "rogue/graph objects/gear/ch_pm_mask_mm_01.mgraphobject" },
+    { "ch_pm_mask_hun_03",               "rogue/graph objects/gear/ch_pm_mask_hun_03.mgraphobject" },
+    { "ch_pm_mask_hun_02",               "rogue/graph objects/gear/ch_pm_mask_hun_02.mgraphobject" },
+    { "ch_pm_mask_hun",               "rogue/graph objects/gear/ch_pm_mask_hun.mgraphobject" },
+    { "ch_pm_mask_ge6_03",               "rogue/graph objects/gear/ch_pm_mask_ge6_03.mgraphobject" },
+    { "ch_pm_mask_ge6_02",               "rogue/graph objects/gear/ch_pm_mask_ge6_02.mgraphobject" },
+    { "ch_pm_mask_ge6_01",               "rogue/graph objects/gear/ch_pm_mask_ge6_01.mgraphobject" },
+    { "ch_pm_mask_ge5_03",               "rogue/graph objects/gear/ch_pm_mask_ge5_03.mgraphobject" },
+    { "ch_pm_mask_ge5_02",               "rogue/graph objects/gear/ch_pm_mask_ge5_02.mgraphobject" },
+    { "ch_pm_mask_ge5_01",               "rogue/graph objects/gear/ch_pm_mask_ge5_01.mgraphobject" },
+    { "ch_pm_mask_ge4_03",               "rogue/graph objects/gear/ch_pm_mask_ge4_03.mgraphobject" },
+    { "ch_pm_mask_ge4_02",               "rogue/graph objects/gear/ch_pm_mask_ge4_02.mgraphobject" },
+    { "ch_pm_mask_ge4_01",               "rogue/graph objects/gear/ch_pm_mask_ge4_01.mgraphobject" },
+    { "ch_pm_mask_ge3_03",               "rogue/graph objects/gear/ch_pm_mask_ge3_03.mgraphobject" },
+    { "ch_pm_mask_ge3_02",               "rogue/graph objects/gear/ch_pm_mask_ge3_02.mgraphobject" },
+    { "ch_pm_mask_ge3_01",               "rogue/graph objects/gear/ch_pm_mask_ge3_01.mgraphobject" },
+};
+
+
 // Stub lists — populate the arrays below as you catalog paths per slot.
 // The UI also exposes a free-text custom-path field per slot, so an empty list
 // just means "no curated entries" — the swap still works via the textbox.
@@ -57,18 +907,23 @@ struct ModelList
     int count;
 };
 
-static const ModelList s_backpackModels   = { s_backpackModels_, (int)(sizeof(s_backpackModels_) / sizeof(s_backpackModels_[0])) };
-static const ModelList s_hatModels        = { nullptr, 0 };
-static const ModelList s_glovesModels     = { nullptr, 0 };
-static const ModelList s_jacketModels     = { nullptr, 0 };
-static const ModelList s_shirtModels      = { nullptr, 0 };
-static const ModelList s_chestplateModels = { nullptr, 0 };
-static const ModelList s_pantsModels      = { nullptr, 0 };
-static const ModelList s_thighModels      = { nullptr, 0 };
-static const ModelList s_feetModels       = { nullptr, 0 };
-static const ModelList s_scarfModels      = { nullptr, 0 };
-static const ModelList s_kneepadsModels   = { nullptr, 0 };
-static const ModelList s_gasMaskModels    = { nullptr, 0 };
+#define MK_LIST(arr) { arr, (int)(sizeof(arr) / sizeof((arr)[0])) }
+
+static const ModelList s_backpackModels   = MK_LIST(s_backpackModels_);
+static const ModelList s_hatModels        = MK_LIST(s_HatModels_);
+static const ModelList s_glovesModels     = MK_LIST(s_GloveModels_);
+static const ModelList s_jacketModels     = MK_LIST(s_JacketModels_);
+static const ModelList s_shirtModels      = MK_LIST(s_ShirtModels_);
+static const ModelList s_chestplateModels = MK_LIST(s_ChestPlateModels_);
+static const ModelList s_pantsModels      = MK_LIST(s_PantsModels_);
+static const ModelList s_thighModels      = MK_LIST(s_HolsterModels_);
+static const ModelList s_feetModels       = MK_LIST(s_FootModels_);
+static const ModelList s_scarfModels      = MK_LIST(s_ScarfModels_);
+static const ModelList s_kneepadsModels   = MK_LIST(s_KneePadModels_);
+static const ModelList s_gasMaskModels    = MK_LIST(s_GasMaskModels_);
+static const ModelList s_cosmeticMaskModels = MK_LIST(s_CosmeticMaskModels_);
+
+#undef MK_LIST
 
 // ─── lifecycle ────────────────────────────────────────────────────────────────
 
@@ -106,6 +961,16 @@ namespace
     static bool        g_autoReapply       = false;
     static std::string s_lastApplied[27];
     static double      s_lastReapplyCheck  = 0.0;
+
+    // Per-slot cooldown after a successful Apply: AutoReapplyOnDrift will
+    // refuse to reapply slot N until kReapplyCooldownSec seconds after its
+    // last commit. Without this, multi-slot mods oscillate: applying slot
+    // 7 triggers a consume pass that briefly knocks slot 0, AutoReapply
+    // reapplies slot 0 which knocks slot 7, etc. — flicker. The cooldown
+    // gives the engine time to settle on the multi-slot state before we
+    // consider the slot drifted.
+    static double      s_lastApplyTime[27] = {};
+    constexpr double   kReapplyCooldownSec = 1.5;
 }
 
 void SkinnedMeshManager::Update()
@@ -208,7 +1073,34 @@ const char* SkinnedMeshManager::GearTypeName(GearType t)
     case GearType::Hat:        return "Hat";
     case GearType::Gloves:     return "Gloves";
     case GearType::GasMask:    return "Gas Mask";
+    case GearType::CosmeticMask: return "Cosmetic Mask";
     default:                   return "Unknown";
+    }
+}
+
+// Locked-down per-slot mapping. Verified by live observation: each index
+// in m_Clothes[27] is consistently the same body part / outfit role across
+// characters and sessions. Slots 0-5 are the armor-functional layer; slots
+// 6-12 are the vanity layer. Indices 13..26 are unused by the equip pipeline
+// on this build and surface as Unknown (kept in the UI for diagnostics).
+SkinnedMeshManager::GearType SkinnedMeshManager::SlotGearType(int slotIndex)
+{
+    switch (slotIndex)
+    {
+    case 0:  return GearType::Backpack;
+    case 1:  return GearType::Chestplate;     // L2
+    case 2:  return GearType::GasMask;
+    case 3:  return GearType::Gloves;
+    case 4:  return GearType::Kneepads;
+    case 5:  return GearType::Thigh;          // holster / thigh bag
+    case 6:  return GearType::Hat;
+    case 7:  return GearType::Jacket;         // L3
+    case 8:  return GearType::Pants;
+    case 9:  return GearType::Scarf;
+    case 10: return GearType::Shirt;          // L1
+    case 11: return GearType::Feet;           // shoes / boots
+    case 12: return GearType::CosmeticMask;
+    default: return GearType::Unknown;
     }
 }
 
@@ -763,9 +1655,19 @@ void SkinnedMeshManager::AutoReapplyOnDrift()
         // what the engine has reverted, not to keep poking healthy state.
         if (live->currentPath == want) continue;
 
+        // Cooldown: applying a slot triggers a consume pass that briefly
+        // perturbs every other slot. Without this gate, a fresh manual
+        // Apply on slot B would immediately re-trigger AutoReapply on
+        // slot A (transient drift), which would commit again and perturb
+        // slot B again — flicker. Skip slots whose last Apply is still
+        // inside the cooldown window; if the drift is real and persistent,
+        // it'll get picked up after the window expires.
+        if (now - s_lastApplyTime[slotIdx] < kReapplyCooldownSec) continue;
+
         // Drifted: re-apply. ApplyDirectSwap re-installs everything (path,
         // bucket, dirty flag) and re-arms the SoftRevert tracking for the
-        // next engine event.
+        // next engine event. Reinforce-step inside Apply also rewrites
+        // any other active mods so they survive this consume pass.
         ApplyDirectSwap(slotIdx, want.c_str(), nullptr);
     }
 }
@@ -817,20 +1719,28 @@ void SkinnedMeshManager::ScanLiveSlots()
         return;
     }
 
+    // Always emit one LiveSlot per index 0..26. Slot type comes from the
+    // locked-down SlotGearType table (verified deterministic on this build) —
+    // ClassifyPath is no longer consulted, since the slot index alone is
+    // authoritative. Empty / inline-empty slots are still emitted so the UI
+    // shows the full clothing layout (and the Unknown 13..26 tail) instead
+    // of hiding rows where the engine cleared a path.
     std::vector<LiveSlot> newSlots;
+    newSlots.reserve(27);
+    bool anyPopulated = false;
     for (int i = 0; i < 27; ++i)
     {
-        if (!raw[i].valid) continue;
         LiveSlot ls;
         ls.index       = i;
-        ls.type        = ClassifyPath(raw[i].path);
-        ls.currentPath = raw[i].path;
+        ls.type        = SlotGearType(i);
+        ls.currentPath = raw[i].valid ? raw[i].path : "";
         ls.capacity    = raw[i].cap;
         ls.canMutate   = raw[i].isHeap && raw[i].cap > 0;
+        if (raw[i].valid) anyPopulated = true;
         newSlots.push_back(std::move(ls));
     }
 
-    if (newSlots.empty())
+    if (!anyPopulated)
     {
         // Transient: engine is mid-equip / in customization preview.
         ++s_emptyScans;
@@ -857,6 +1767,61 @@ void SkinnedMeshManager::ScanLiveSlots()
 }
 
 // ─── direct in-place mutation ────────────────────────────────────────────────
+
+// Rewrites our cached mod onto every OTHER active slot so the engine's
+// upcoming consume pass (triggered by m_DirtyFlag) sees ALL our paths in
+// place — not just the slot we're currently applying. Without this, the
+// consume pass refreshes m_Clothes from staging and silently reverts our
+// previously-applied mods, producing the "flicker between slots" symptom
+// when several mods are active.
+//
+// Heavy reset (CallApplyClothingIdGuarded + drop-old-Item*) is deliberately
+// skipped — those steps are only needed for a slot whose ORIGINAL bag is
+// still bound. After a successful Apply, the slot's Item* is already our
+// modded one; a straight path + bucket rewrite is enough to keep it.
+//
+// Returns the number of slots reinforced (for diagnostics).
+static int ReinforceOtherActiveMods(TD::AppearanceManager* am, int exceptSlot)
+{
+    int reinforced = 0;
+    for (int i = 0; i < 27; ++i)
+    {
+        if (i == exceptSlot) continue;
+        if (!s_modState[i].active) continue;
+        const std::string& want = s_lastApplied[i];
+        if (want.empty()) continue;
+
+        BYTE* sstr = am->m_Clothes[i].m_Path.bytes;
+
+        // Compare current to want — skip rewrite if path is already correct.
+        char cur[260] = {};
+        if (!ReadSnowdropStringAt(sstr, cur, sizeof(cur))) continue;
+        if (std::strcmp(cur, want.c_str()) == 0) continue;
+
+        // Rewrite path: fast in-place if existing heap capacity allows,
+        // else engine-allocator-correct assign.
+        std::size_t newLen = want.size();
+        bool wroteOk = false;
+        if (sstr[0x0F] != 0)
+        {
+            char* heapStr = *(char**)sstr;
+            if (heapStr)
+            {
+                std::uint32_t cap = *(std::uint32_t*)(heapStr - 4);
+                if (cap > 0 && cap <= 0x1000 && newLen + 1 <= cap)
+                    wroteOk = GuardedHeapWrite(heapStr, want.c_str(), newLen, cap);
+            }
+        }
+        if (!wroteOk)
+            wroteOk = CallStringAssignGuarded(&am->m_Clothes[i].m_Path, want.c_str());
+        if (!wroteOk) continue;
+
+        // Re-insert the AttachBucket so the consume pass binds the model.
+        CallModelLoadTriggerGuarded(am, &am->m_Clothes[i].m_Path, (std::uint32_t)i);
+        ++reinforced;
+    }
+    return reinforced;
+}
 
 bool SkinnedMeshManager::ApplyDirectSwap(int slotIndex, const char* newPath,
                                         std::string* errOut)
@@ -983,6 +1948,15 @@ bool SkinnedMeshManager::ApplyDirectSwap(int slotIndex, const char* newPath,
     bool bucketInserted = CallModelLoadTriggerGuarded(am, &slot.m_Path,
                                                       (std::uint32_t)slotIndex);
 
+    // 5b. Reinforce every other still-active mod before flipping DirtyFlag.
+    //     This is the multi-slot fix: the consume pass refreshes m_Clothes
+    //     from staging, and if our other modded paths aren't present at that
+    //     moment they get reverted to vanilla — producing flicker as each
+    //     manual Apply or auto-reapply knocks the previously-modded slots.
+    //     Rewriting all active mods here ensures the consume sees the full
+    //     outfit in one shot.
+    int reinforced = ReinforceOtherActiveMods(am, slotIndex);
+
     // 5a. If sync didn't run above, set m_NeedsResync manually. Sync sets it;
     //     when we skip sync the consume pass still wants the resync signal so
     //     the visual fully refreshes.
@@ -1001,19 +1975,37 @@ bool SkinnedMeshManager::ApplyDirectSwap(int slotIndex, const char* newPath,
         st.active  = true;
         st.modPath = newPath;
         s_lastApplied[slotIndex] = newPath;
+        s_lastApplyTime[slotIndex] = ImGui::GetTime();
+    }
+
+    // Re-baseline every OTHER active mod's SoftRevert tracking. Applying
+    // this slot just changed m_AttachHashmap_Count / m_AssetRecords_Count
+    // globally (new bucket + new Item* on the consume pass), so the stale
+    // baselines on the other s_modState entries would otherwise read as
+    // "engine activity" on the next SoftRevert tick and trigger an
+    // unwanted teardown of those mods. Resetting baselineHashCt = -1
+    // forces a fresh snapshot after the kSettleFramesBeforeBaseline wait.
+    for (int i = 0; i < 27; ++i)
+    {
+        if (i == slotIndex) continue;
+        if (!s_modState[i].active) continue;
+        s_modState[i].settleFrames     = 0;
+        s_modState[i].baselineHashCt   = -1;
+        s_modState[i].baselineRecordCt = -1;
     }
 
     if (errOut)
     {
         char buf[260];
         std::snprintf(buf, sizeof(buf),
-                      "ok (reset:%s sync:%s old_items:%d disq:%d %s %s)",
+                      "ok (reset:%s sync:%s old_items:%d disq:%d %s %s reinforce:%d)",
                       slotReset        ? "y" : "n",
                       syncCalled       ? "y" : "skip",
                       oldItemsRemoved,
                       disqualified,
                       usedEngineAssign ? "engine-assign" : "fast-memcpy",
-                      bucketInserted   ? "bucket+"       : "bucket-FAIL");
+                      bucketInserted   ? "bucket+"       : "bucket-FAIL",
+                      reinforced);
         *errOut = buf;
     }
     return true;
@@ -1040,6 +2032,7 @@ GetModelList(SkinnedMeshManager::GearType t, int& outCount)
     case GT::Hat:        lst = &s_hatModels;        break;
     case GT::Gloves:     lst = &s_glovesModels;     break;
     case GT::GasMask:    lst = &s_gasMaskModels;    break;
+    case GT::CosmeticMask: lst = &s_cosmeticMaskModels; break;
     default:             outCount = 0; return nullptr;
     }
     outCount = lst->count;
@@ -1131,26 +2124,65 @@ void SkinnedMeshManager::DrawUI()
     {
         ImGui::PushID(ls.index);
 
+        // A slot is "writable" if either:
+        //   • It already has a heap allocation (canMutate — direct in-place
+        //     write or engine reassign).
+        //   • It's an Unknown slot 13..26 (no body-part binding, so we don't
+        //     surface the Apply UI even though the engine *could* assign a
+        //     path there). Cosmetic for now.
+        //   • It's a known slot 0..12 with an inline-empty SnowdropString —
+        //     the engine's assign helper (sub_116830) converts inline→heap
+        //     using the engine's own allocator, so first-time writes into
+        //     an empty body-part slot work.
+        const bool isKnownSlot = (ls.index >= 0 && ls.index < kKnownSlotCount);
+        const bool writable    = ls.canMutate || isKnownSlot;
+
         // Header: "Slot 7 — Jacket (L3)"
         ImGui::TextColored(ImVec4(0.6f, 0.85f, 1.0f, 1.0f),
                            "Slot %d — %s", ls.index, GearTypeName(ls.type));
         ImGui::SameLine();
-        ImGui::TextDisabled("[cap %u, %s]",
-                            (unsigned)ls.capacity,
-                            ls.canMutate ? "mutable" : "INLINE/locked");
+        const char* mutTag = ls.canMutate ? "mutable"
+                                          : (writable ? "inline-empty (engine-assign)"
+                                                      : "INLINE/locked");
+        ImGui::TextDisabled("[cap %u, %s]", (unsigned)ls.capacity, mutTag);
 
         if (ls.currentPath.empty())
-            ImGui::TextDisabled("Current: (engine cleared — heap allocation reserved, can still write)");
+        {
+            if (ls.canMutate)
+                ImGui::TextDisabled("Current: (engine cleared — heap allocation reserved, can still write)");
+            else if (writable)
+                ImGui::TextDisabled("Current: (empty — first write will allocate via engine's assign)");
+            else
+                ImGui::TextDisabled("Current: (empty — slot unused on this character)");
+        }
         else
+        {
             ImGui::TextWrapped("Current: %s", ls.currentPath.c_str());
+        }
 
-        if (!ls.canMutate)
+        if (!writable)
         {
             ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f),
-                               "  cannot mutate (path is inline — heap conversion not implemented)");
+                               "  cannot mutate (unknown slot — no body-part binding)");
             ImGui::Separator();
             ImGui::PopID();
             continue;
+        }
+
+        // Cosmetic mask quirk: equipping via the in-game UI also swaps the
+        // head model to a balaclava + hides hair. That side effect is driven
+        // by the ArmorItem descriptor's myAttributeGenType=Hat flag, which
+        // only fires when the engine binds a full .mitem descriptor — not
+        // when we write the .mgraphobject path directly. So our swap shows
+        // the mask geometry without the head/hair changes. TODO: revisit
+        // (see ArmorItem parser sub_F2FD40; needs descriptor binding or
+        // direct head/hair state replication).
+        if (ls.type == GearType::CosmeticMask)
+        {
+            ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f),
+                               "  note: this slot renders the mask only — the in-game UI also");
+            ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f),
+                               "  swaps the head and hides hair; that side effect isn't replicated here.");
         }
 
         int        modelCount = 0;

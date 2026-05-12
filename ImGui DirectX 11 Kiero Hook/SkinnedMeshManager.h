@@ -74,8 +74,36 @@ public:
     // consume frame loads the model and the item factory (sub_F48FE0)
     // creates the new Item subclass.
     // Returns true on success; writes a diagnostic into *errOut.
+    //
+    // ★ LEGACY PATH ★ — This path-only flow misses the descriptor side
+    // effects (head/hair swap on cosmetic masks, L1/L2 covered-mesh
+    // selection on jackets). Prefer ApplyEquipByName below; ApplyDirectSwap
+    // remains as a fallback for items not in InventoryConfig (custom
+    // paths, mods, etc.).
     static bool ApplyDirectSwap(int slotIndex, const char* newPath,
                                 std::string* errOut = nullptr);
+
+    // ★ Production equip path (2026-05-12) ★
+    // Resolves `mitemName` via ItemDescriptorCache, then drives the engine's
+    // full descriptor-bound equip pipeline (Pattern A+ algorithm — clone an
+    // existing PlayerInventory wrapper, retarget +0x00 to our chosen Item*,
+    // call sub_162DB80, clear AppearanceManager flags to suppress the
+    // engine's revert tick). Per-frame orphan-bucket cleanup is wired into
+    // Update() automatically.
+    //
+    // This is the ONLY path that produces correct visual side effects —
+    // cosmetic mask head/hair swap, L1/L2/L3 covered-mesh selection, etc.
+    // It also avoids the "duplicates on multi-equip" symptom because the
+    // engine atomically replaces m_AssetRecords through sub_162DB80.
+    //
+    // Returns true on success; writes a diagnostic into *errOut.
+    // Returns false if `mitemName` is not in InventoryConfig (caller
+    // should fall back to ApplyDirectSwap or report to user).
+    //
+    // Full algorithm reference: .claude/docs/06-inventory-equip-pipeline.md
+    //                           "The shipping algorithm (verified 2026-05-12)"
+    static bool ApplyEquipByName(int slotIndex, const char* mitemName,
+                                 std::string* errOut = nullptr);
 
     static GearType    ClassifyPath(const char* path);
     static const char* GearTypeName(GearType t);

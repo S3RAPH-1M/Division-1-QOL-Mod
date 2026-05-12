@@ -2033,6 +2033,54 @@ bool SkinnedMeshManager::ApplyDirectSwap(int slotIndex, const char* newPath,
     return true;
 }
 
+// ── ApplyEquipByName: production descriptor-bound equip ─────────────────────
+// Thin wrapper over EquipPipelineProbe::RunEquipTestPatternAPlus(name, true, …).
+// The probe is the algorithm — see .claude/docs/06-inventory-equip-pipeline.md
+// "The shipping algorithm (verified 2026-05-12)" for the full recipe and the
+// "why each step matters" table.
+//
+// Returns false if mitemName is empty, not in InventoryConfig, or the engine
+// call AVs. Caller may then fall back to ApplyDirectSwap for legacy path-only
+// behavior on items the cache doesn't know about (custom paths, mods, etc.).
+bool SkinnedMeshManager::ApplyEquipByName(int slotIndex, const char* mitemName,
+                                          std::string* errOut)
+{
+    if (slotIndex < 0 || slotIndex >= 27)
+    {
+        if (errOut) *errOut = "slot index out of range";
+        return false;
+    }
+    if (!mitemName || !*mitemName)
+    {
+        if (errOut) *errOut = "empty mitem name";
+        return false;
+    }
+
+    // Pattern A+: clone donor wrapper, retarget +0x00, sub_162DB80,
+    // clear AM flags. clearFlagsAfter must always be true in production
+    // (false leaves the equip living for ~1 frame before the engine
+    // reverts — that's only useful for the A/B probe).
+    EquipPipelineProbe::Result r{};
+    bool ranEndToEnd = EquipPipelineProbe::RunEquipTestPatternAPlus(
+        mitemName,
+        /*clearFlagsAfter=*/true,
+        &r);
+
+    // The probe's `ranEndToEnd` is true even on engine AVs — it returns
+    // false only for setup failures (item not in cache, no player AM).
+    // Translate that into our success/failure: the equip is "good" if
+    // the engine call returned cleanly AND m_pSlot was populated.
+    bool ok = ranEndToEnd && r.callReturned;
+
+    if (errOut)
+    {
+        // The probe summary is verbose — useful as the diagnostic.
+        *errOut = r.summary;
+    }
+
+    return ok;
+}
+
 // ─── UI ──────────────────────────────────────────────────────────────────────
 
 static const SkinnedMeshManager::ModelSwapEntry*
@@ -2447,39 +2495,10 @@ void SkinnedMeshManager::DrawUI()
             continue;
         }
 
-        // Side-effects-not-replicated warning: cosmetic mask head/hair swap,
-        // and L1/L2/L3 layered-clothing coverage (uncovered shirt/chestplate
-        // when a jacket is worn) are driven by the engine's full descriptor-
-        // bound equip pipeline. Our skin changer writes a .mgraphobject path
-        // directly and the consume pass loads the mesh — but Item* is never
-        // created, m_pSlot stays NULL, and the descriptor-driven side effects
-        // (myAttributeGenType=Hat for cosmetic masks, "is jacket present"
-        // query for L1/L2 covered-variant selection) never fire.
-        //
-        // Live diff evidence (ReClass): equipping via UI sets m_Clothes[i].m_pSlot
-        // to a non-NULL asset handle and clears m_NeedsResync; equipping via our
-        // skin changer leaves m_pSlot=NULL and m_NeedsResync=1.
-        //
-        // TODO: full fix requires descriptor binding via the engine's item
-        // factory (sub_F48FE0) using descriptors looked up from InventoryConfig's
-        // by-name hashmap (sub_F04270). See project_cosmetic_mask_head_swap.md
-        // and project_clothing_coverage_l1l2l3.md memory notes for the roadmap.
-        if (ls.type == GearType::CosmeticMask)
-        {
-            ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f),
-                               "  note: this slot renders the mask only — the in-game UI also");
-            ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f),
-                               "  swaps the head and hides hair; that side effect isn't replicated here.");
-        }
-        else if (ls.type == GearType::Jacket
-              || ls.type == GearType::Chestplate
-              || ls.type == GearType::Shirt)
-        {
-            ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f),
-                               "  note: L1/L2 covered-variant selection is engine-driven from the");
-            ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f),
-                               "  jacket Item*; our path-only swap may cause clipping between layers.");
-        }
+        // (Descriptor-side-effects warning removed 2026-05-12 — the Apply
+        // button now routes through ApplyEquipByName which drives the full
+        // engine equip pipeline. Cosmetic mask head/hair swap and L1/L2/L3
+        // covered-mesh selection both fire correctly.)
 
         int        modelCount = 0;
         const auto* models = GetModelList(ls.type, modelCount);
@@ -2524,8 +2543,61 @@ void SkinnedMeshManager::DrawUI()
             }
             else
             {
+                // ── Try descriptor-bound equip (Pattern A+) first ─────────
+                // Derive the .mitem base name from the asset path. The .mitem
+                // for `rogue/graph objects/gear/ca_cm_b_uw_dar.mgraphobject`
+                // is just `ca_cm_b_uw_dar` (basename minus the extension).
+                // Holds for every catalogued vanilla item we've checked.
+                // For paths the cache doesn't know (custom paths, modded
+                // assets), we fall back to the legacy path-only flow.
+                char mitemName[160] = {};
+                {
+                    const char* slash = std::strrchr(target, '/');
+                    const char* base  = slash ? slash + 1 : target;
+                    std::size_t i = 0;
+                    while (base[i] && base[i] != '.' && i + 1 < sizeof(mitemName))
+                    {
+                        mitemName[i] = base[i];
+                        ++i;
+                    }
+                    mitemName[i] = '\0';
+                }
+
                 std::string err;
-                bool ok = ApplyDirectSwap(ls.index, target, &err);
+                bool ok = false;
+                bool triedDescriptor = false;
+
+                // Only attempt descriptor equip if the cache is captured —
+                // otherwise LookupByName would return nullptr and we'd
+                // fall back unnecessarily.
+                if (mitemName[0] && ItemDescriptorCache::GetCfg() &&
+                    ItemDescriptorCache::LookupByName(mitemName))
+                {
+                    triedDescriptor = true;
+                    ok = ApplyEquipByName(ls.index, mitemName, &err);
+                }
+
+                // Fall back to legacy path-only flow if the item isn't in
+                // InventoryConfig OR if the descriptor call AV'd. The path
+                // flow still lacks descriptor side effects, but it's the
+                // best we can do for items the cache doesn't know.
+                if (!ok)
+                {
+                    std::string err2;
+                    bool legacyOk = ApplyDirectSwap(ls.index, target, &err2);
+                    if (legacyOk)
+                    {
+                        ok  = true;
+                        err = triedDescriptor
+                            ? (std::string("[descriptor failed, used legacy] ") + err2)
+                            : (std::string("[legacy path] ") + err2);
+                    }
+                    else if (err.empty())
+                    {
+                        err = err2;
+                    }
+                }
+
                 ui.lastOk = ok;
                 ui.lastResult = ok
                     ? (err.empty() ? (std::string("ok — wrote: ") + target)

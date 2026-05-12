@@ -600,6 +600,20 @@ namespace EquipPipelineProbe
         list.count     = 1;
         list.cap_flags = 1;
 
+        // 8a. Snapshot the slot's current path before the call. If the slot
+        //     was already occupied (e.g. the player has a vanilla backpack
+        //     in slot 0), the engine's AttachHashmap has a bucket for that
+        //     vanilla path. After our sub_162DB80 call updates the slot
+        //     to point at OUR item's path, the vanilla bucket is orphaned
+        //     — the engine's own Character_ApplyClothingId pass doesn't
+        //     catch it because that function reads bucket field +0x3C
+        //     while ModelLoadTrigger only writes the slot id to +0x2C
+        //     (different offsets — the engine never sees vanilla buckets
+        //     as belonging to the slot). We have to remove the vanilla
+        //     bucket ourselves once we know the new path landed.
+        char preSlotPath[260] = {};
+        ReadSlotPathGuarded(am, out->targetSlot, preSlotPath, sizeof(preSlotPath));
+
         // 9. The call.
         out->callAttempted = true;
         CallOutcome c = CallSetEquippedItemsGuarded(am, &list);
@@ -609,33 +623,41 @@ namespace EquipPipelineProbe
         out->faultAddress     = c.faultAddress;
         out->faultType        = c.faultType;
 
-        // 9a. If the call succeeded, record this injection so the per-frame
-        //     maintainer can clean up our orphan AttachHashmap bucket later
-        //     when the engine replaces our wrapper in m_AssetRecords (e.g.
-        //     via the player's in-game UI equip). Before recording, also
-        //     remove any PREVIOUS injection for the same slot — two
-        //     Pattern A+ clicks in a row would otherwise leak the first
-        //     click's bucket.
+        // 9a. Cleanup + record on success. Two orphans to potentially
+        //     remove from m_AttachHashmap:
+        //       (1) the vanilla bucket whose path was in m_Clothes[slot]
+        //           BEFORE our call (captured into preSlotPath above)
+        //       (2) the previous Pattern A+ injection for this slot
+        //           (recorded by an earlier call into s_inj[slot])
+        //     Both are removed via the engine's hashmap_remove, keyed by
+        //     the path string. Skipping the remove when the old path
+        //     equals the new path avoids removing the bucket we just
+        //     inserted (e.g. re-equipping the same item is a no-op).
         if (c.returned && out->targetSlot >= 0 && out->targetSlot < 27)
         {
+            char postSlotPath[260] = {};
+            ReadSlotPathGuarded(am, out->targetSlot, postSlotPath, sizeof(postSlotPath));
+
+            // (1) Vanilla / pre-call bucket — fires the first time we
+            //     equip over a filled slot.
+            if (preSlotPath[0] && _stricmp(preSlotPath, postSlotPath) != 0)
+                CallHashmapRemoveGuarded(am, preSlotPath);
+
+            // (2) Previous Pattern A+ bucket — fires on the 2nd+ click
+            //     for the same slot.
             TrackedInjection& prev = s_inj[out->targetSlot];
-            if (prev.active && prev.path[0])
+            if (prev.active && prev.path[0] &&
+                _stricmp(prev.path, postSlotPath) != 0 &&
+                _stricmp(prev.path, preSlotPath)  != 0)   // already removed in (1)
             {
-                // Clean up the previous Pattern A+ injection for this slot.
                 CallHashmapRemoveGuarded(am, prev.path);
             }
-            // The path the engine resolved into m_Clothes[slot].m_Path is
-            // the same string it used as the bucket key in
-            // m_AttachHashmap. Read it back so we know exactly which
-            // bucket to remove later.
-            char resolvedPath[260];
-            ReadSlotPathGuarded(am, out->targetSlot, resolvedPath, sizeof(resolvedPath));
+
+            // Record the new injection state for the per-frame maintainer
+            // and for the next Pattern A+ call on this slot.
             prev.active  = true;
             prev.wrapper = s_clone;
-            // Manual bounded copy — MSVC deprecates strncpy/strncpy_s usage
-            // varies by config; snprintf gives us a clean, portable
-            // truncation with guaranteed NUL termination.
-            std::snprintf(prev.path, sizeof(prev.path), "%s", resolvedPath);
+            std::snprintf(prev.path, sizeof(prev.path), "%s", postSlotPath);
         }
 
         // 10. Post-snapshot.

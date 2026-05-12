@@ -414,18 +414,63 @@ namespace EquipPipelineProbe
     // ── Pattern A+ injection tracking ─────────────────────────────────
     // Per slot (0..26), remember the wrapper pointer we last injected and
     // the asset path it carries. MaintainInjections compares the current
-    // m_AssetRecords against this state every frame and cleans up our
-    // orphan AttachHashmap bucket when the engine has moved on.
+    // m_AssetRecords against this state every frame and re-applies our
+    // full injection set when the engine has dropped any of them (which
+    // happens on any sub_162DB80 call from in-game UI, save load, etc.).
     struct TrackedInjection
     {
         bool   active;
-        void*  wrapper;            // address of our static clone buffer
+        void*  wrapper;            // address of our per-slot clone buffer
         char   path[260];          // resolved visual-gear path the engine
                                    // would have inserted for the bucket;
-                                   // we use this string to identify and
-                                   // remove the bucket via hashmap_remove.
+                                   // recorded for diagnostics + possible
+                                   // future per-slot bucket cleanup.
     };
     static TrackedInjection s_inj[27]{};
+
+    // Per-slot static clone buffers. Each Pattern A+ injection writes its
+    // retargeted wrapper into a unique 1 KB buffer so the engine can
+    // reference it indefinitely without other injections corrupting it.
+    //
+    // ★ Previously a single shared s_clone buffer caused: equipping slot B
+    //   would overwrite the bytes slot A's tracked wrapper pointed at, so
+    //   m_AssetRecords[slotA] silently aliased slot B's item template —
+    //   only one injection ever rendered correctly at a time.
+    static std::uint8_t s_clones[27][1024];
+
+    // Original outfit snapshot — taken once, before our first mutation.
+    // We copy the live m_AssetRecords pointer array (the wrapper pointers
+    // themselves remain valid because they live in PlayerInventory-owned
+    // memory, not in the vector) so a later sub_162DB80 call can replay
+    // them and restore the player's outfit exactly.
+    struct OutfitSnapshot
+    {
+        bool  captured;
+        int   count;
+        void* wrappers[64];          // up to 64 wrappers; live outfits ~13
+    };
+    static OutfitSnapshot s_originalOutfit{};
+
+    bool TakeOriginalSnapshotGuarded(TD::AppearanceManager* am)
+    {
+        if (s_originalOutfit.captured) return true;
+        if (!am) return false;
+        __try
+        {
+            void** arr = am->m_AssetRecords_Ptr;
+            int    n   = am->m_AssetRecords_Count;
+            if (!arr || n <= 0) return false;
+            int cap = (int)(sizeof(s_originalOutfit.wrappers) /
+                            sizeof(s_originalOutfit.wrappers[0]));
+            if (n > cap) n = cap;
+            for (int i = 0; i < n; ++i)
+                s_originalOutfit.wrappers[i] = arr[i];
+            s_originalOutfit.count    = n;
+            s_originalOutfit.captured = true;
+            return true;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
 
     // Engine's AttachHashmap remove (sub_1650620). Cleanly drops the
     // bucket whose model-path key equals `path`. Verified equivalent of
@@ -567,19 +612,13 @@ namespace EquipPipelineProbe
 
         WrapperProbe w = ReadWrapperGuarded(wrapper);
 
-        // 6. Clone the wrapper into a static 1 KB buffer. The exact
-        //    wrapper size isn't pinned (we saw fields up through ~+0x320
-        //    in the live walk), so we copy a conservative 1024 bytes.
-        //    Static = lifetime = process lifetime, so the engine can
-        //    safely retain a pointer into it after sub_162DB80 returns.
-        //
-        //    Note: only one Pattern A probe runs at a time — re-clicking
-        //    overwrites this buffer. The previously equipped clone (if
-        //    it landed in m_AssetRecords) then references stale data; do
-        //    not chain back-to-back probe runs without intervening
-        //    engine equips that would overwrite m_AssetRecords.
-        static std::uint8_t s_clone[1024];
-        if (!MemcpyGuarded(s_clone, wrapper, sizeof(s_clone)))
+        // 6. Clone the wrapper into THIS slot's dedicated 1 KB buffer.
+        //    Each slot gets its own s_clones[slot] entry so that equipping
+        //    slot B doesn't smash slot A's wrapper memory — every active
+        //    injection must keep referencing valid retargeted bytes for
+        //    the engine's next pass.
+        std::uint8_t* s_clone = s_clones[out->targetSlot];
+        if (!MemcpyGuarded(s_clone, wrapper, sizeof(s_clones[0])))
         {
             std::snprintf(out->summary, sizeof(out->summary),
                           "FAIL: memcpy of wrapper at %p crashed mid-copy", wrapper);
@@ -591,14 +630,32 @@ namespace EquipPipelineProbe
         //    template+0x40 = real slot id (verified earlier in step 2).
         *(void**)s_clone = out->itemPtr;
 
-        // 8. Build a 1-entry list. `entryStorage` holds a single pointer
-        //    to our static clone buffer; the list header points at
-        //    entryStorage so the engine sees `Item** ptr = &s_clone`.
-        void*           entryStorage = s_clone;
+        // 8. Build the items list. sub_162DB80 is a full-list replace —
+        //    any active wrapper NOT in the list gets evicted from
+        //    m_AssetRecords, which makes that slot revert to whatever
+        //    PlayerInventory holds for it. Because we removed the slot's
+        //    vanilla AttachHashmap bucket on the original equip, the
+        //    revert renders as INVISIBLE rather than a fallback model.
+        //
+        //    Fix: include every still-active tracked injection (except
+        //    this slot, which we're replacing) so all our prior equips
+        //    survive the call. The list pointers are stored in a static
+        //    array so the engine can keep reading them after we return.
+        static void*  s_entries[27];
+        int           nEntries = 0;
+        for (int slot = 0; slot < 27; ++slot)
+        {
+            if (slot == out->targetSlot)          continue;
+            if (!s_inj[slot].active)              continue;
+            if (!s_inj[slot].wrapper)             continue;
+            s_entries[nEntries++] = s_inj[slot].wrapper;
+        }
+        s_entries[nEntries++] = s_clone;
+
         EngineItemList  list{};
-        list.ptr       = &entryStorage;
-        list.count     = 1;
-        list.cap_flags = 1;
+        list.ptr       = s_entries;
+        list.count     = nEntries;
+        list.cap_flags = (std::uint32_t)nEntries;
 
         // 8a. Snapshot the slot's current path before the call. If the slot
         //     was already occupied (e.g. the player has a vanilla backpack
@@ -777,37 +834,224 @@ namespace EquipPipelineProbe
 
     // ── Per-frame maintenance ──────────────────────────────────────────
     //
-    // For each tracked Pattern A+ injection, check if our wrapper is still
-    // in m_AssetRecords. If the engine has replaced it (e.g. the player
-    // equipped a real item via in-game UI), our AttachHashmap bucket is
-    // now orphaned and would otherwise continue rendering — remove it.
-    void MaintainInjections(void* appearanceManager)
-    {
-        auto* am = (TD::AppearanceManager*)appearanceManager;
-        if (!am) return;
+    // Detects when the engine has dropped any of our wrappers from
+    // m_AssetRecords — happens whenever a sub_162DB80 call originates
+    // outside this module (in-game equip UI, save load, mission swaps,
+    // anything that issues SetEquippedItems). On detection, re-applies
+    // every active injection in a single sub_162DB80 call so the engine
+    // rebuilds m_AssetRecords with our overrides included.
+    //
+    // The alternative — remove our orphan AttachHashmap bucket — was
+    // wrong: the engine had ALREADY rewritten m_Clothes[slot].m_Path back
+    // to vanilla in the same pass, so the orphan bucket wasn't actually
+    // an orphan, it was the only bucket keeping the slot rendering. We
+    // were nuking our own model.
+    // No-op per the user's design: auto-re-injection caused visible
+    // flicker when the engine fired its own SetEquippedItems passes
+    // (weapon swaps, animation state changes, etc.). The user instead
+    // drives re-application manually via the "Apply All" UI button,
+    // which calls ReapplyAllInjections() exactly once.
+    //
+    // Kept as an exported entry point so SkinnedMeshManager::Update()
+    // doesn't have to change.
+    void MaintainInjections(void* /*appearanceManager*/) { }
 
+    // Manually re-apply every active Pattern A+ injection in a single
+    // sub_162DB80 call. Use this when the engine has clobbered our
+    // wrappers (slots gone invisible) and you want everything back.
+    // Returns the number of injections re-applied; 0 if nothing was
+    // active or the call faulted.
+    int ReapplyAllInjections()
+    {
+        auto* am = GetPlayerAppearance();
+        if (!am) return 0;
+
+        static void* s_entries[27];
+        int nEntries = 0;
         for (int slot = 0; slot < 27; ++slot)
         {
-            TrackedInjection& inj = s_inj[slot];
-            if (!inj.active) continue;
-
-            // The wrapper is the address of our static clone buffer
-            // (s_clone). When the engine equips something else, it
-            // replaces m_AssetRecords with its own wrapper pointers —
-            // ours is no longer in the array.
-            if (AssetRecordsContainsGuarded(am, inj.wrapper))
-                continue;       // still active, no cleanup needed
-
-            // Engine replaced our wrapper. Remove our orphan
-            // AttachHashmap bucket using the path we recorded.
-            if (inj.path[0])
-                CallHashmapRemoveGuarded(am, inj.path);
-
-            // Clear tracking — the slot is no longer "ours."
-            inj.active     = false;
-            inj.wrapper    = nullptr;
-            inj.path[0]    = '\0';
+            if (!s_inj[slot].active || !s_inj[slot].wrapper) continue;
+            s_entries[nEntries++] = s_inj[slot].wrapper;
         }
+        if (nEntries == 0) return 0;
+
+        EngineItemList list{};
+        list.ptr       = s_entries;
+        list.count     = nEntries;
+        list.cap_flags = (std::uint32_t)nEntries;
+
+        CallOutcome c = CallSetEquippedItemsGuarded(am, &list);
+        if (!c.returned) return 0;
+        ClearAmFlagsGuarded(am);
+        return nEntries;
+    }
+
+    // Stage one slot's clone buffer + tracked-injection state without
+    // calling the engine. Caller is responsible for firing one combined
+    // sub_162DB80 call after all desired slots have been staged. Returns
+    // false if either the donor wrapper or the memcpy failed.
+    static bool StageOneGuarded(int slotIdx, void* itemTemplate, void* playerInv)
+    {
+        if (slotIdx < 0 || slotIdx >= 27 || !itemTemplate) return false;
+
+        void* holder = nullptr;
+        void* donor  = FindAnyWrapperGuarded(playerInv, &holder);
+        if (!donor) return false;
+
+        if (!MemcpyGuarded(s_clones[slotIdx], donor, sizeof(s_clones[0])))
+            return false;
+
+        // Retarget +0x00 to our chosen template. Engine's slot id read
+        // (*(QWORD*)entry)+0x40 now lands on the template's real slot.
+        *(void**)s_clones[slotIdx] = itemTemplate;
+
+        s_inj[slotIdx].active  = true;
+        s_inj[slotIdx].wrapper = s_clones[slotIdx];
+        // Path is filled in after the engine call rewrites m_Clothes[slot].m_Path.
+        return true;
+    }
+
+    // Apply many slots in a single engine call. For each (slot, name) pair:
+    //   - Look up the template via ItemDescriptorCache::LookupByName
+    //   - Clone a donor wrapper from PlayerInventory into s_clones[slot]
+    //   - Retarget +0x00 to the template and mark s_inj[slot] active
+    // Then fire ONE sub_162DB80 call carrying every active tracked wrapper
+    // (the batch entries plus any earlier injections still active). One
+    // animation reset for the entire batch instead of N for N entries —
+    // this is the path the "Apply All" UI button uses.
+    //
+    // Returns the number of (slot, name) entries that successfully resolved
+    // + staged. Engine call success is implicit in the return: > 0 means
+    // the call returned; 0 means either the call AV'd or nothing resolved.
+    int RunEquipBatch(const int* slots, const char* const* names, int n,
+                      char* err, std::size_t errSize)
+    {
+        if (err && errSize) err[0] = '\0';
+
+        auto* am = GetPlayerAppearance();
+        if (!am)
+        {
+            if (err) std::snprintf(err, errSize, "no player AppearanceManager");
+            return 0;
+        }
+
+        void* inv = GetPlayerInventory();
+        if (!inv)
+        {
+            if (err) std::snprintf(err, errSize, "no PlayerInventory");
+            return 0;
+        }
+
+        // Snapshot the original outfit on the first call only. After
+        // this point we're free to mutate m_AssetRecords; the snapshot
+        // holds pointers to wrappers that live in PlayerInventory-owned
+        // memory and stay valid until the character is unloaded.
+        TakeOriginalSnapshotGuarded(am);
+
+        int staged = 0;
+        for (int i = 0; i < n; ++i)
+        {
+            void* tmpl = ItemDescriptorCache::LookupByName(names[i]);
+            if (!tmpl) continue;
+            if (StageOneGuarded(slots[i], tmpl, inv)) ++staged;
+        }
+
+        // Build list of every active wrapper (this batch + previously
+        // active injections that the user didn't include in this call).
+        static void* s_entries[27];
+        int nEntries = 0;
+        for (int slot = 0; slot < 27; ++slot)
+        {
+            if (!s_inj[slot].active || !s_inj[slot].wrapper) continue;
+            s_entries[nEntries++] = s_inj[slot].wrapper;
+        }
+        if (nEntries == 0)
+        {
+            if (err) std::snprintf(err, errSize, "nothing resolved/staged");
+            return 0;
+        }
+
+        EngineItemList list{};
+        list.ptr       = s_entries;
+        list.count     = nEntries;
+        list.cap_flags = (std::uint32_t)nEntries;
+
+        CallOutcome c = CallSetEquippedItemsGuarded(am, &list);
+        if (!c.returned)
+        {
+            if (err)
+                std::snprintf(err, errSize,
+                              "engine call AV'd (code 0x%08lX ip=%p)",
+                              c.exceptionCode, c.exceptionAddress);
+            return 0;
+        }
+        ClearAmFlagsGuarded(am);
+
+        // After the call, record each staged slot's resolved visual-gear
+        // path so future Pattern A+ calls can identify our buckets.
+        for (int i = 0; i < n; ++i)
+        {
+            int slot = slots[i];
+            if (slot < 0 || slot >= 27) continue;
+            if (!s_inj[slot].active)    continue;
+            ReadSlotPathGuarded(am, slot, s_inj[slot].path, sizeof(s_inj[slot].path));
+        }
+
+        return staged;
+    }
+
+    // Replay the captured original outfit through sub_162DB80, then
+    // forget all our tracked injections. The snapshot's wrapper pointers
+    // still reference live PlayerInventory holders, so the engine
+    // rebuilds m_AssetRecords + m_Clothes[].m_Path + AttachHashmap from
+    // those instead of from our clone buffers. Result: the character
+    // visually matches their pre-mod state.
+    //
+    // Returns the wrapper count replayed, or 0 if no snapshot exists /
+    // the call faulted / the player AM is unreachable.
+    int RestoreOriginalOutfit()
+    {
+        if (!s_originalOutfit.captured || s_originalOutfit.count <= 0)
+            return 0;
+        auto* am = GetPlayerAppearance();
+        if (!am) return 0;
+
+        EngineItemList list{};
+        list.ptr       = s_originalOutfit.wrappers;
+        list.count     = s_originalOutfit.count;
+        list.cap_flags = (std::uint32_t)s_originalOutfit.count;
+
+        CallOutcome c = CallSetEquippedItemsGuarded(am, &list);
+        if (!c.returned) return 0;
+        ClearAmFlagsGuarded(am);
+
+        // Drop all our tracked injections — the engine just overwrote
+        // every slot we'd touched, so our clone buffers are no longer
+        // referenced anywhere.
+        for (int slot = 0; slot < 27; ++slot)
+        {
+            s_inj[slot].active  = false;
+            s_inj[slot].wrapper = nullptr;
+            s_inj[slot].path[0] = '\0';
+        }
+        return s_originalOutfit.count;
+    }
+
+    bool HasOriginalSnapshot() { return s_originalOutfit.captured; }
+
+    // Force a fresh snapshot of the current m_AssetRecords. Used by the
+    // "Snapshot" UI button so the user can pin a known-good outfit
+    // (e.g. after the engine has rebuilt records for a new character).
+    // Returns the wrapper count captured; 0 if the AM is unreachable or
+    // m_AssetRecords is empty.
+    int TakeOriginalSnapshotNow()
+    {
+        s_originalOutfit.captured = false;
+        s_originalOutfit.count    = 0;
+        auto* am = GetPlayerAppearance();
+        if (!am) return 0;
+        if (!TakeOriginalSnapshotGuarded(am)) return 0;
+        return s_originalOutfit.count;
     }
 
     // Force-clean every tracked injection right now. Used by the manual

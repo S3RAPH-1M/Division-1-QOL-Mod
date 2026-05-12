@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <cstddef>
 
 // Empirical test of the engine's high-level equip pipeline
 // (sub_162DB80 / AppearanceManager_SetEquippedItems).
@@ -128,22 +129,44 @@ namespace EquipPipelineProbe
                                   bool clearFlagsAfter,
                                   Result* out);
 
-    // Per-frame maintenance: detects when a Pattern A+ injected wrapper has
-    // been replaced in m_AssetRecords (e.g. the player UI-equipped a real
-    // item in the same slot), and removes our orphan AttachHashmap bucket
-    // so the old mesh stops rendering alongside the new one.
-    //
-    // Why this is needed: AppearanceManager_ModelLoadTrigger writes the
-    // slot id to bucket+0x2C, but Character_ApplyClothingId (the engine's
-    // bucket cleanup pass) reads bucket+0x3C. So the engine's normal
-    // cleanup can't identify Pattern A+ buckets as belonging to the slot.
-    // The bucket leaks and the renderer keeps rendering its mesh until
-    // we remove it ourselves.
-    //
-    // Cheap to call every frame — most frames it's a no-op (no tracked
-    // injections, or our wrapper still present). Safe to call when am is
-    // null (returns immediately).
+    // No-op kept for source compatibility — auto re-injection caused
+    // visible flicker on engine-driven SetEquippedItems passes
+    // (weapon swaps, animation state changes), so re-application is
+    // now user-driven via ReapplyAllInjections() / the "Apply All" UI
+    // button. Safe to call every frame; does nothing.
     void MaintainInjections(void* appearanceManager);
+
+    // Re-apply every currently tracked Pattern A+ injection in a single
+    // sub_162DB80 call. Use this when the engine has clobbered our
+    // wrappers (slots gone invisible after an in-game equip) and the
+    // user wants everything visible again. Returns the number of
+    // injections re-applied; 0 if nothing was active or the call faulted.
+    int ReapplyAllInjections();
+
+    // Replay the original outfit captured by the first RunEquipBatch call,
+    // then clear all tracked injections. Returns the number of original
+    // wrappers replayed (also implies success); 0 if no snapshot exists
+    // or the engine call faulted.
+    int  RestoreOriginalOutfit();
+    bool HasOriginalSnapshot();
+
+    // Force-capture a fresh snapshot of the live m_AssetRecords NOW. The
+    // first RunEquipBatch call takes one automatically; this lets the
+    // user re-pin if they want to overwrite the auto-capture (e.g. after
+    // a character reload that rebuilt the wrapper set). Returns the
+    // wrapper count captured, or 0 on failure.
+    int  TakeOriginalSnapshotNow();
+
+    // Batch-apply many slots in one engine call. For each (slot, name)
+    // pair: resolve the .mitem name via ItemDescriptorCache, stage a
+    // retargeted clone, then fire ONE sub_162DB80 call carrying every
+    // staged wrapper PLUS any earlier injections still tracked. Single
+    // animation reset for the whole batch — the "Apply All" UI button's
+    // backend. Returns the count of entries successfully staged; 0 if
+    // the engine call AV'd or nothing resolved. On failure, `err` (if
+    // non-null) receives a short diagnostic.
+    int RunEquipBatch(const int* slots, const char* const* names, int n,
+                      char* err, std::size_t errSize);
 
     // Remove every Pattern A+ injection's orphan bucket immediately.
     // Useful for "Cleanup" UI button. After this returns, no Pattern A+

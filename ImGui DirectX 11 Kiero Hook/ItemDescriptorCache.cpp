@@ -11,31 +11,27 @@
 // owns the canonical definitions.
 
 // ─── Strategy ────────────────────────────────────────────────────────────────
-// We originally tried to hook the engine's name-lookup function (sub_F07C40)
-// to capture the InventoryConfig pointer when the engine called it. That
-// returned MH_ERROR_MEMORY_PROTECT (VirtualProtect → ERROR_ACCESS_DENIED) on
-// the game's .text page — the signature of Arbitrary Code Guard (ACG) being
-// enforced on the process. ACG is kernel-level and blocks ALL user-mode code-
-// section patching, including direct NtProtectVirtualMemory syscalls. We
-// cannot patch code in this build.
+// Direct singleton-chain walk. We can't hook sub_F07C40 (ACG blocks
+// .text patching on this process), but every caller of sub_F07C40 obtains
+// the InventoryConfig pointer through the same fixed offset chain rooted
+// at a single global pointer in the data section:
 //
-// Workaround: scan game heap memory for the InventoryConfig struct's unique
-// signature, capture its pointer once, then CALL sub_F07C40 as a normal
-// function pointer. Calling code is unrestricted by ACG — only patching is.
+//   module + 0x4688B28   global pointer (game's item-system singleton)
+//     -> +0x120          sub-system holder
+//     -> +0x28           inner holder
+//     -> +0x138          cfg-owner wrapper
+//     -> +0xD8           InventoryConfig*
 //
-// Signature we look for (InventoryConfig struct, partially mapped from
-// sub_F49920 / sub_F07C40 / sub_F7D9A0):
-//   +0x00  vtable*           (points into the game module .rdata)
-//   +0x20  Item** data       (heap-allocated vector of descriptor pointers)
-//   +0x28  uint32 count      (≥ a few thousand — there are many .mitems)
-//   +0x2C  uint32 capacity   (≥ count)
-//   +0x170 hashmap_entries*  (by-name hashmap; entries 24 bytes each)
-//   +0x1A0 hashmap_entries*  (by-UID hashmap)
+// Verified by decompiling sub_125E3B0 and sub_11D5B20 (both walk this
+// exact chain to feed sub_CEA470, which deref-s owner+0xD8 to feed
+// sub_F07C40). Five reads, SEH-guarded, no scanning.
 //
-// We additionally validate the captured candidate by calling sub_F07C40 with
-// a known-good item name. If it returns a non-null descriptor whose
-// +64 (myEquipmentSlot) is a sensible clothing-slot integer (0..26), we
-// accept the pointer.
+// We still validate by probing sub_F07C40 with a known-good item name —
+// cheap insurance against the offsets drifting on a future game update.
+//
+// The legacy heap-wide signature scan (LooksLikeInventoryConfig +
+// ScanForCfg) remains in the file below but is dead code; it's kept as
+// fallback inspiration if the chain ever stops resolving.
 // ─────────────────────────────────────────────────────────────────────────────
 
 namespace
@@ -313,18 +309,53 @@ namespace ItemDescriptorCache
         return true;
     }
 
+    // Walks the engine's item-system singleton chain to InventoryConfig.
+    // Five SEH-guarded reads; null at any level short-circuits to nullptr.
+    // POD-only, no destructible C++ locals (C2712).
+    static TD::InventoryConfig* WalkChainGuarded()
+    {
+        if (!g_pBase) return nullptr;
+        TD::InventoryConfig* cfg = nullptr;
+        __try
+        {
+            void* singleton = *reinterpret_cast<void**>(g_pBase + 0x4688B28);
+            if (!singleton) return nullptr;
+
+            void* sub1 = *reinterpret_cast<void**>(
+                reinterpret_cast<std::uintptr_t>(singleton) + 0x120);
+            if (!sub1) return nullptr;
+
+            void* sub2 = *reinterpret_cast<void**>(
+                reinterpret_cast<std::uintptr_t>(sub1) + 0x28);
+            if (!sub2) return nullptr;
+
+            void* owner = *reinterpret_cast<void**>(
+                reinterpret_cast<std::uintptr_t>(sub2) + 0x138);
+            if (!owner) return nullptr;
+
+            cfg = *reinterpret_cast<TD::InventoryConfig**>(
+                reinterpret_cast<std::uintptr_t>(owner) + 0xD8);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return nullptr; }
+        return cfg;
+    }
+
     bool TryCapture()
     {
         if (g_pInventoryConfig.load(std::memory_order_acquire)) return true;
         if (!g_pBase) return false;
 
-        TD::InventoryConfig* cfg = ScanForCfg();
+        TD::InventoryConfig* cfg = WalkChainGuarded();
         g_scanRan = true;
-        if (cfg)
+        if (cfg && ValidateCandidate(cfg))
         {
             g_pInventoryConfig.store(cfg, std::memory_order_release);
+            g_lastScanResult = "FOUND via singleton chain";
             return true;
         }
+        g_lastScanResult = cfg
+            ? "chain resolved but ValidateCandidate failed (offsets drifted?)"
+            : "chain returned null (item system not loaded yet?)";
         return false;
     }
 

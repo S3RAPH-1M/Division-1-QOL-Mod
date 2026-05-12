@@ -105,6 +105,9 @@
     <ClCompile Include="ItemDescriptorCache.cpp">
       <Filter>Source Files\Managers</Filter>
     </ClCompile>
+    <ClCompile Include="EquipPipelineProbe.cpp">
+      <Filter>Source Files\Managers</Filter>
+    </ClCompile>
     <ClCompile Include="AgentInspector.cpp">
       <Filter>Source Files\Managers</Filter>
     </ClCompile>
@@ -206,6 +209,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ItemDescriptorCache.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="EquipPipelineProbe.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="AgentInspector.h">

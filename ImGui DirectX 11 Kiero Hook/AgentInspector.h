@@ -29,7 +29,12 @@ private:
     static bool        IsAgentValid(TD::Agent* a);
 
     void DrawAgentStats(TD::Agent* a);
-    void DrawConsumables();
+
+    // Render the selected agent's wallet (currencies + consumables) inline
+    // inside the agent-detail pane. For the local player we use the scan-
+    // located PlayerSessionState; for remote players we display the next
+    // candidate when there's exactly one, otherwise note the limitation.
+    void DrawAgentWallet(TD::Agent* a);
 
 private:
     std::vector<TD::Agent*> m_players;

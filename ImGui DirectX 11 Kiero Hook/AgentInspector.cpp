@@ -307,32 +307,8 @@ void AgentInspector::DrawAgentStats(TD::Agent* a)
     ImGui::Text("AppearanceMgr*:   0x%p", s.appearance);
     ImGui::Text("PlayerInventory*: 0x%p", s.inventory);
 
-    // Only do the deep inventory drill-down for the LOCAL player (Agent[0])
-    // — remote players' PlayerInventory / AppearanceManager pointers are
-    // often null or not initialized on this side, and dereferencing them
-    // would crash.
-    TD::RogueClient* rc = TD::RogueClient::Singleton();
-    bool isLocal = false;
-    if (rc && rc->m_pClient && rc->m_pClient->m_pWorld
-        && rc->m_pClient->m_pWorld->m_AgentCount > 0
-        && rc->m_pClient->m_pWorld->m_AgentArray
-        && rc->m_pClient->m_pWorld->m_AgentArray[0] == a)
-    {
-        isLocal = true;
-    }
-
-    if (!isLocal)
-    {
-        ImGui::Spacing();
-        ImGui::TextDisabled(
-            "(Consumable counts only shown for the local player.\n"
-            "Remote-player session state is not replicated client-side.)");
-        return;
-    }
-
-    // Local player: show grenade / medkit counts from PlayerSessionState.
     ImGui::Spacing();
-    DrawConsumables();
+    DrawAgentWallet(a);
 }
 
 // SEH-guarded validation of a candidate PlayerSessionState pointer.
@@ -463,10 +439,50 @@ static SessionFields ReadSessionFields(TD::PlayerSessionState* ps)
     return f;
 }
 
-void AgentInspector::DrawConsumables()
+// Format a uint32 with thousands separators into a fixed buffer (POD only,
+// no std::string — keeps callers SEH-safe and avoids per-frame allocations).
+// E.g. 5069574 -> "5,069,574".
+static void FormatThousands(uint32_t v, char* out, size_t outSize)
 {
-    ImGui::TextColored(ImVec4(1, 0.8f, 0.2f, 1), "Player Resources");
+    if (!out || outSize == 0) return;
+    char raw[16];
+    int n = std::snprintf(raw, sizeof(raw), "%u", v);
+    if (n <= 0) { out[0] = 0; return; }
+
+    int commaInserts = (n - 1) / 3;
+    int total = n + commaInserts;
+    if ((size_t)total + 1 > outSize) { std::snprintf(out, outSize, "%u", v); return; }
+
+    int srcEnd = n;
+    int dstEnd = total;
+    out[dstEnd--] = 0;
+    int groupCount = 0;
+    while (srcEnd > 0)
+    {
+        if (groupCount == 3) { out[dstEnd--] = ','; groupCount = 0; }
+        out[dstEnd--] = raw[--srcEnd];
+        ++groupCount;
+    }
+}
+
+// Is the given agent the LOCAL player (Agent[0] of the World's agent array)?
+static bool IsLocalAgent(TD::Agent* a)
+{
+    TD::RogueClient* rc = TD::RogueClient::Singleton();
+    if (!rc || !rc->m_pClient || !rc->m_pClient->m_pWorld) return false;
+    TD::World* w = rc->m_pClient->m_pWorld;
+    if (!w->m_AgentArray || w->m_AgentCount <= 0) return false;
+    return w->m_AgentArray[0] == a;
+}
+
+void AgentInspector::DrawAgentWallet(TD::Agent* a)
+{
+    ImGui::TextColored(ImVec4(1, 0.8f, 0.2f, 1), "Wallet");
     ImGui::Separator();
+
+    // Auto-scan once so the panel populates without a button click.
+    if (!m_sessionScanAttempted)
+        FindSessionState();
 
     // Drop any cached candidates that have gone stale (heap can reallocate).
     for (auto it = m_sessionStates.begin(); it != m_sessionStates.end(); )
@@ -477,88 +493,86 @@ void AgentInspector::DrawConsumables()
             ++it;
     }
 
-    if (m_sessionStates.empty())
-    {
-        if (!m_sessionScanAttempted)
-            ImGui::TextDisabled("Session state not located yet.");
-        else
-            ImGui::TextColored(ImVec4(1, 0.6f, 0.2f, 1),
-                "Session state not found by scan.");
-
-        if (ImGui::Button("Find Session State"))
-            FindSessionState();
-        ImGui::SameLine();
-        ImGui::TextDisabled("(scans heap — takes a moment)");
-        return;
-    }
-
-    // If there are multiple candidates, that tells us remote players' session
-    // state IS replicated. Display every candidate so the user can verify
-    // which is theirs vs. teammates'.
-    if (m_sessionStates.size() > 1)
-    {
-        ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.5f, 1),
-            "Found %d session-state candidates!", (int)m_sessionStates.size());
-        ImGui::TextDisabled(
-            "More than one = remote-player state IS replicated client-side. "
-            "Match candidates to players by comparing known values.");
-    }
-    else
-    {
-        ImGui::TextDisabled(
-            "1 candidate found (local player only on this build / scenario). "
-            "Click Re-scan during multiplayer to test whether remote state replicates.");
-    }
-
-    if (ImGui::SmallButton("Re-scan"))
+    if (ImGui::SmallButton("Re-scan session state"))
     {
         m_sessionStates.clear();
         FindSessionState();
         return;
     }
 
+    if (m_sessionStates.empty())
+    {
+        ImGui::TextColored(ImVec4(1, 0.6f, 0.2f, 1),
+            "No PlayerSessionState located by heap scan.");
+        return;
+    }
+
+    // Pick which session state to display for this agent.
+    //   Local player  -> candidate 0 (verified to be the local wallet).
+    //   Remote player -> if exactly 2 candidates exist, use candidate 1
+    //                    (best-effort; remote replication is unverified).
+    //                    Otherwise note the limitation rather than guess.
+    const bool local = IsLocalAgent(a);
+    TD::PlayerSessionState* ps = nullptr;
+
+    if (local)
+    {
+        ps = m_sessionStates[0];
+    }
+    else if (m_sessionStates.size() == 2)
+    {
+        ps = m_sessionStates[1];
+        ImGui::TextColored(ImVec4(1, 0.7f, 0.2f, 1),
+            "Note: remote-wallet attribution is best-effort — using the\n"
+            "non-local PlayerSessionState candidate. Verify before trusting.");
+    }
+    else
+    {
+        ImGui::TextDisabled(
+            "Remote player selected, but %d session-state candidates found.\n"
+            "Agent* -> PlayerSessionState* mapping is not yet implemented,\n"
+            "so we can't attribute a specific wallet to this agent.",
+            (int)m_sessionStates.size());
+        return;
+    }
+
+    SessionFields f = ReadSessionFields(ps);
+    if (!f.ok)
+    {
+        ImGui::TextColored(ImVec4(1, 0.4f, 0.4f, 1),
+            "Read failed — pointer became invalid.");
+        return;
+    }
+
+    ImGui::TextDisabled("SessionState* 0x%p", (void*)ps);
     ImGui::Spacing();
 
-    for (size_t idx = 0; idx < m_sessionStates.size(); ++idx)
+    // Inline "Label: value" rows. Currencies routinely run into the millions
+    // so we format with thousands separators for readability.
+    auto walletLine = [](const char* label, uint32_t value)
     {
-        TD::PlayerSessionState* ps = m_sessionStates[idx];
-        SessionFields f = ReadSessionFields(ps);
+        char buf[32];
+        FormatThousands(value, buf, sizeof(buf));
+        ImGui::Text("%-18s %s", label, buf);
+    };
 
-        ImGui::PushID((int)idx);
-        char hdr[96];
-        std::snprintf(hdr, sizeof(hdr),
-            "Candidate %zu  (PlayerSessionState* 0x%p)", idx, (void*)ps);
+    ImGui::Text("Currencies");
+    ImGui::Indent();
+    walletLine("Credits:",         f.credits);
+    walletLine("Premium Credits:", f.premiumCreds);
+    walletLine("Phoenix Credits:", f.phoenix);
+    walletLine("DZ Fund:",         f.dzFund);
+    walletLine("Dark Zone Keys:",  f.dzKeys);
+    walletLine("Target Intel:",    f.targetIntel);
+    walletLine("GE Credits:",      f.geCredits);
+    ImGui::Unindent();
 
-        if (ImGui::CollapsingHeader(hdr, ImGuiTreeNodeFlags_DefaultOpen))
-        {
-            if (!f.ok)
-            {
-                ImGui::TextColored(ImVec4(1, 0.4f, 0.4f, 1),
-                    "Read failed — pointer became invalid.");
-            }
-            else
-            {
-                ImGui::Text("Consumables:");
-                ImGui::Indent();
-                ImGui::Text("Grenades:        %u", f.grenades);
-                ImGui::Text("Medkits:         %u", f.medkits);
-                ImGui::Unindent();
-
-                ImGui::Spacing();
-                ImGui::Text("Currencies:");
-                ImGui::Indent();
-                ImGui::Text("Credits:         %u", f.credits);
-                ImGui::Text("DZ Fund:         %u", f.dzFund);
-                ImGui::Text("Phoenix Credits: %u", f.phoenix);
-                ImGui::Text("Target Intel:    %u", f.targetIntel);
-                ImGui::Text("Dark Zone Keys:  %u", f.dzKeys);
-                ImGui::Text("Premium Credits: %u", f.premiumCreds);
-                ImGui::Text("GE Credits:      %u", f.geCredits);
-                ImGui::Unindent();
-            }
-        }
-        ImGui::PopID();
-    }
+    ImGui::Spacing();
+    ImGui::Text("Consumables");
+    ImGui::Indent();
+    walletLine("Grenades:", f.grenades);
+    walletLine("Medkits:",  f.medkits);
+    ImGui::Unindent();
 }
 
 void AgentInspector::DrawUI()

@@ -2,6 +2,7 @@
 #include "Snowdrop.h"
 #include "Main.h"
 #include "ItemDescriptorCache.h"
+#include "EquipPipelineProbe.h"
 #include "imgui/imgui.h"
 
 #include <Windows.h>
@@ -926,6 +927,11 @@ static const ModelList s_cosmeticMaskModels = MK_LIST(s_CosmeticMaskModels_);
 
 #undef MK_LIST
 
+// ─── forward decls — Update() needs GetPlayerAppearance which is defined
+//      far below the lifecycle block. Re-declaring here keeps Update()
+//      self-contained without reshuffling the file.
+static TD::AppearanceManager* GetPlayerAppearance(std::string* errOut);
+
 // ─── lifecycle ────────────────────────────────────────────────────────────────
 
 SkinnedMeshManager::SkinnedMeshManager() = default;
@@ -979,6 +985,19 @@ void SkinnedMeshManager::Update()
     ScanLiveSlots();
     SoftRevertOnEngineActivity();
     AutoReapplyOnDrift();
+
+    // Pattern A+ orphan-bucket cleanup. After a Pattern A+ injection, if
+    // the engine later replaces our wrapper in m_AssetRecords (player
+    // UI-equipped something), the AttachHashmap bucket we inserted is
+    // left behind and the renderer keeps rendering its mesh alongside
+    // the new item. This maintainer detects "our wrapper is gone" and
+    // removes the orphan bucket. No-op when there are no tracked
+    // injections (the common case).
+    {
+        std::string err;
+        if (TD::AppearanceManager* am = GetPlayerAppearance(&err))
+            EquipPipelineProbe::MaintainInjections(am);
+    }
 }
 
 // SoftRevertOnEngineActivity is defined after GetPlayerAppearance and the
@@ -1110,6 +1129,8 @@ SkinnedMeshManager::GearType SkinnedMeshManager::SlotGearType(int slotIndex)
 // Forward declaration: FindPlayerAgent is defined further down at file scope,
 // but the GatherDiagInfo helper inside the anonymous namespace below needs to
 // see it. Static is fine — same translation unit.
+// (GetPlayerAppearance forward declaration lives earlier in the file —
+//  near the lifecycle block — because Update() also needs it.)
 static TD::Agent* FindPlayerAgent(TD::World* world, int* outFoundIdx);
 
 namespace
@@ -2157,6 +2178,183 @@ void SkinnedMeshManager::DrawUI()
         }
         if (!s_lookupResult.empty())
             ImGui::TextWrapped("%s", s_lookupResult.c_str());
+    }
+
+    // ── Equip-pipeline probe ───────────────────────────────────────────────
+    // One-shot empirical test of sub_162DB80 (AppearanceManager_SetEquippedItems)
+    // with a single template Item* in the list. The deep RE pass on
+    // 2026-05-12 produced a hypothesis that templates from InventoryConfig
+    // can't be used directly as list entries (slot-id read at
+    // (entry.first_qword)+0x40 lands in the static vtable's inline string
+    // data). This probe either confirms the AV at the predicted address
+    // OR shows the call returning cleanly. See
+    // .claude/docs/06-inventory-equip-pipeline.md "Structural blocker"
+    // section. Once this question is answered, this whole block can go.
+    if (ImGui::CollapsingHeader("sub_162DB80 Probe (DANGER)"))
+    {
+        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
+                           "WARNING: invokes the engine's equip API with a single");
+        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
+                           "template Item*. May corrupt outfit state or crash.");
+        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
+                           "Save / be safe-zone before clicking. SEH catches in-thread");
+        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
+                           "AVs only; engine corruption may surface a frame later.");
+
+        static char        s_probeName[256] = "ch_pm_mask_ge3_03";
+        static std::string s_probeResult;
+        static bool        s_probeArmed = false;
+
+        ImGui::PushItemWidth(360.0f);
+        ImGui::InputText("item name##probeEquip", s_probeName, sizeof(s_probeName));
+        ImGui::PopItemWidth();
+
+        ImGui::Checkbox("Armed (must check before Run)", &s_probeArmed);
+        ImGui::SameLine();
+        // Older ImGui in this project doesn't have BeginDisabled, so we
+        // gate the button by checking s_probeArmed at click time. Visual
+        // disable comes from a dimmer style when not armed. Cache the
+        // armed state UP FRONT — clicking the button flips s_probeArmed
+        // and would otherwise unbalance the Push/Pop pair.
+        const bool wasArmed = s_probeArmed;
+        if (!wasArmed)
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.3f, 0.3f, 0.3f, 1.0f));
+        if (ImGui::Button("Run probe") && wasArmed)
+        {
+            EquipPipelineProbe::Result r{};
+            EquipPipelineProbe::RunEquipTest(s_probeName, &r);
+            s_probeResult = r.summary;
+            s_probeArmed  = false;     // re-arm after each click — never auto-repeat
+        }
+        if (!wasArmed)
+            ImGui::PopStyleColor();
+
+        if (!s_probeResult.empty())
+            ImGui::TextWrapped("%s", s_probeResult.c_str());
+    }
+
+    // ── Equip-pipeline probe v2 (Pattern A: clone-and-retarget) ────────
+    // The v1 probe above empirically confirmed that templates cannot be
+    // passed directly to sub_162DB80 (AV at the slot-id read). Pattern A
+    // sidesteps that by cloning an existing EquipInstance wrapper from
+    // PlayerInventory and swapping only its +0x00 (inner Item*) to our
+    // target. The engine then sees `(*(QWORD*)entry)+0x40 = template's
+    // real slot id`, which is the read that crashed before. Layout
+    // verified live 2026-05-12 — see 06-inventory-equip-pipeline.md.
+    if (ImGui::CollapsingHeader("Pattern A Probe — Clone + Retarget (DANGER)"))
+    {
+        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f),
+                           "Clones an existing wrapper from PlayerInventory,");
+        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f),
+                           "swaps its inner Item* to your target, calls sub_162DB80.");
+        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f),
+                           "Safer than v1 in theory, but still untested live —");
+        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f),
+                           "may corrupt outfit state or crash. Re-arm before each Run.");
+
+        static char        s_patAName[256] = "ch_pm_mask_ge3_03";
+        static std::string s_patAResult;
+        static bool        s_patAArmed = false;
+
+        ImGui::PushItemWidth(360.0f);
+        ImGui::InputText("item name##probePatA", s_patAName, sizeof(s_patAName));
+        ImGui::PopItemWidth();
+
+        ImGui::Checkbox("Armed (must check before Run)##patAArmed", &s_patAArmed);
+        ImGui::SameLine();
+        const bool patAWasArmed = s_patAArmed;
+        if (!patAWasArmed)
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.3f, 0.3f, 0.3f, 1.0f));
+        if (ImGui::Button("Run PatternA probe") && patAWasArmed)
+        {
+            EquipPipelineProbe::Result r{};
+            EquipPipelineProbe::RunEquipTestPatternA(s_patAName, &r);
+            s_patAResult = r.summary;
+            s_patAArmed  = false;
+        }
+        if (!patAWasArmed)
+            ImGui::PopStyleColor();
+
+        if (!s_patAResult.empty())
+            ImGui::TextWrapped("%s", s_patAResult.c_str());
+    }
+
+    // ── Equip-pipeline probe v3 (Pattern A+: clear-flags-after) ────────
+    // Pattern A succeeded for one frame, then the engine reverted our
+    // wrapper. Hypothesis: the engine's revert tick fires on a transition
+    // of m_DirtyFlag / m_ListUpdated / m_NeedsResync. Pattern A+ clears
+    // all three immediately after the sub_162DB80 call and observes
+    // whether the equip persists past the next frame.
+    //
+    // Two modes:
+    //   - "Clear flags after"  → A+ behavior
+    //   - "Control"            → identical to plain Pattern A
+    // Running both lets us A/B test the hypothesis in the same session.
+    if (ImGui::CollapsingHeader("Pattern A+ Probe — Clear Flags (DANGER)"))
+    {
+        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f),
+                           "After sub_162DB80, writes 0 to m_DirtyFlag,");
+        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f),
+                           "m_ListUpdated, m_NeedsResync to suppress engine revert.");
+        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f),
+                           "WARNING: clearing m_DirtyFlag before consume may also");
+        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f),
+                           "prevent the mesh from rendering at all.");
+
+        static char        s_patAPlusName[256] = "ch_pm_mask_ge3_03";
+        static std::string s_patAPlusResult;
+        static bool        s_patAPlusArmed    = false;
+        static bool        s_patAPlusClearOn  = true;     // default to the new behavior
+
+        ImGui::PushItemWidth(360.0f);
+        ImGui::InputText("item name##probePatAPlus", s_patAPlusName, sizeof(s_patAPlusName));
+        ImGui::PopItemWidth();
+
+        ImGui::Checkbox("Clear flags after call (A+ mode)", &s_patAPlusClearOn);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip(
+                "ON  = write 0 to m_DirtyFlag / m_ListUpdated / m_NeedsResync\n"
+                "      immediately after sub_162DB80 (the A+ test).\n"
+                "OFF = leave flags as engine set them — identical to plain\n"
+                "      Pattern A (control / sanity check).");
+
+        ImGui::Checkbox("Armed (must check before Run)##patAPlusArmed", &s_patAPlusArmed);
+        ImGui::SameLine();
+        const bool patAPlusWasArmed = s_patAPlusArmed;
+        if (!patAPlusWasArmed)
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.3f, 0.3f, 0.3f, 1.0f));
+        if (ImGui::Button("Run A+ probe") && patAPlusWasArmed)
+        {
+            EquipPipelineProbe::Result r{};
+            EquipPipelineProbe::RunEquipTestPatternAPlus(s_patAPlusName,
+                                                          s_patAPlusClearOn, &r);
+            s_patAPlusResult = r.summary;
+            s_patAPlusArmed  = false;
+        }
+        if (!patAPlusWasArmed)
+            ImGui::PopStyleColor();
+
+        if (!s_patAPlusResult.empty())
+            ImGui::TextWrapped("%s", s_patAPlusResult.c_str());
+
+        // Manual cleanup — forces removal of every tracked Pattern A+
+        // injection's AttachHashmap bucket right now. Useful if you've
+        // injected a mask, UI-equipped a different one, and the orphan
+        // mesh is lingering despite the per-frame maintainer (e.g. if
+        // the engine renamed the bucket key in a way the maintainer
+        // can't match).
+        if (ImGui::Button("Cleanup all Pattern A+ injections"))
+        {
+            std::string err;
+            if (TD::AppearanceManager* am = GetPlayerAppearance(&err))
+                EquipPipelineProbe::ClearAllInjections(am);
+            s_patAPlusResult = "manual cleanup invoked";
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip(
+                "Walks every tracked Pattern A+ injection and removes its\n"
+                "AttachHashmap bucket via the engine's hashmap_remove\n"
+                "(sub_1650620). Clears all tracking state. Safe to spam.");
     }
 
     // Auto re-apply controls. Drift-only: if the slot's current path already

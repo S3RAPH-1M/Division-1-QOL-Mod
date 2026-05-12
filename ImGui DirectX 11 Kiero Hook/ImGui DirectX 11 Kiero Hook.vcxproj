@@ -249,6 +249,7 @@
     <ClCompile Include="ConfigManager.cpp" />
     <ClCompile Include="HeadManager.cpp" />
     <ClCompile Include="Hooks.cpp" />
+    <ClCompile Include="EquipPipelineProbe.cpp" />
     <ClCompile Include="ItemDescriptorCache.cpp" />
     <ClCompile Include="imgui\imgui.cpp" />
     <ClCompile Include="imgui\imgui_demo.cpp" />
@@ -295,6 +296,7 @@
     <ClInclude Include="AgentInspector.h" />
     <ClInclude Include="includes.h" />
     <ClInclude Include="IniReader.h" />
+    <ClInclude Include="EquipPipelineProbe.h" />
     <ClInclude Include="ItemDescriptorCache.h" />
     <ClInclude Include="IniWriter.h" />
     <ClInclude Include="KeybindHelper.h" />

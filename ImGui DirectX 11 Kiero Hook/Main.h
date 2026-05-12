@@ -6,6 +6,7 @@
 #include "ConfigManager.h"
 #include "SkinnedMeshManager.h"
 #include "HeadManager.h"
+#include "AgentInspector.h"
 
 class Main
 {
@@ -21,12 +22,14 @@ public:
 	SkinnedMeshManager* GetSkinnedMeshManager() { return m_pSkinnedMeshManager.get(); }
 	ConfigManager* GetConfigManager() { return m_pConfigManager.get(); }
 	HeadManager* GetHeadManager() { return m_pHeadManager.get(); }
+	AgentInspector* GetAgentInspector() { return m_pAgentInspector.get(); }
 
 	std::unique_ptr<CameraManager> m_pCameraManager;
 	std::unique_ptr<VisualManager> m_pVisualManager;
 	std::unique_ptr<SkinnedMeshManager> m_pSkinnedMeshManager;
 	std::unique_ptr<ConfigManager> m_pConfigManager;
 	std::unique_ptr<HeadManager> m_pHeadManager;
+	std::unique_ptr<AgentInspector> m_pAgentInspector;
 
 	bool m_shutdown;
 public:

@@ -1,6 +1,7 @@
 #include "SkinnedMeshManager.h"
 #include "Snowdrop.h"
 #include "Main.h"
+#include "ItemDescriptorCache.h"
 #include "imgui/imgui.h"
 
 #include <Windows.h>
@@ -2079,6 +2080,85 @@ void SkinnedMeshManager::DrawUI()
             di.agentCount, di.playerIdx, (void*)di.player, di.playerType, (void*)di.am);
     }
 
+    // Descriptor-cache probe. The ItemDescriptorCache hook captures the
+    // InventoryConfig pointer the first time the engine queries an item by
+    // name. Once captured, we can resolve any .mitem name to a real engine
+    // descriptor — the foundation for descriptor-based equipping that
+    // triggers the side effects (head/hair swap on cosmetic masks, layered-
+    // clothing coverage on jackets) the path-only swap currently misses.
+    if (ImGui::CollapsingHeader("Item Descriptor Cache (probe)"))
+    {
+        TD::InventoryConfig* cfg = ItemDescriptorCache::GetCfg();
+
+        // Strategy banner: ACG blocks code patching on this build, so we
+        // scan for the InventoryConfig pointer instead of hooking.
+        ImGui::TextDisabled("strategy: heap scan (ACG blocks .text patching)");
+
+        if (cfg)
+        {
+            ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f),
+                               "InventoryConfig: %p  (captured)", (void*)cfg);
+        }
+        else
+        {
+            ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f),
+                               "InventoryConfig: not yet captured");
+            ImGui::TextDisabled("Click Scan to walk process heap and find it.");
+            ImGui::TextDisabled("Takes a few seconds — UI will hang during the scan.");
+        }
+
+        if (ImGui::Button("Scan for InventoryConfig"))
+        {
+            ItemDescriptorCache::TryCapture();
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("last result: %s", ItemDescriptorCache::GetLastStatusName());
+
+        // Scan stats — repurposed from the old hook diagnostics.
+        ItemDescriptorCache::PageDiag pd = ItemDescriptorCache::GetPageDiag();
+        ImGui::TextDisabled("scan stats: regions=%llu  bytes=%llu  candidates=%llu",
+                            (unsigned long long)pd.allocationBase,
+                            (unsigned long long)pd.state | (((unsigned long long)pd.protect) << 32),
+                            (unsigned long long)pd.type);
+
+        static char s_lookupName[256] = "ch_pm_mask_ge3_03";
+        static std::string s_lookupResult;
+
+        ImGui::PushItemWidth(360.0f);
+        ImGui::InputText("item name##descLookup", s_lookupName, sizeof(s_lookupName));
+        ImGui::PopItemWidth();
+        ImGui::SameLine();
+        if (ImGui::Button("Lookup"))
+        {
+            TD::ItemDescriptor* desc = ItemDescriptorCache::LookupByName(s_lookupName);
+            if (!desc)
+            {
+                s_lookupResult = cfg ? "not found in cache" : "cfg not captured yet";
+            }
+            else
+            {
+                char male[260] = {};
+                char female[260] = {};
+                ItemDescriptorCache::GetMaleVisualGearPath(desc, male, sizeof(male));
+                ItemDescriptorCache::GetFemaleVisualGearPath(desc, female, sizeof(female));
+                int slot = ItemDescriptorCache::GetEquipmentSlot(desc);
+                int gen  = ItemDescriptorCache::GetAttributeGenType(desc);
+                int cat  = ItemDescriptorCache::GetInventoryCategory(desc);
+
+                char buf[1024];
+                std::snprintf(buf, sizeof(buf),
+                              "desc=%p slot=%d genType=%d invCat=%d\n"
+                              "  M: %s\n  F: %s",
+                              (void*)desc, slot, gen, cat,
+                              male[0]   ? male   : "(empty)",
+                              female[0] ? female : "(empty)");
+                s_lookupResult = buf;
+            }
+        }
+        if (!s_lookupResult.empty())
+            ImGui::TextWrapped("%s", s_lookupResult.c_str());
+    }
+
     // Auto re-apply controls. Drift-only: if the slot's current path already
     // matches what we last applied, this pass leaves it alone — only the
     // slots the engine has reverted get re-Applied.
@@ -2169,20 +2249,38 @@ void SkinnedMeshManager::DrawUI()
             continue;
         }
 
-        // Cosmetic mask quirk: equipping via the in-game UI also swaps the
-        // head model to a balaclava + hides hair. That side effect is driven
-        // by the ArmorItem descriptor's myAttributeGenType=Hat flag, which
-        // only fires when the engine binds a full .mitem descriptor — not
-        // when we write the .mgraphobject path directly. So our swap shows
-        // the mask geometry without the head/hair changes. TODO: revisit
-        // (see ArmorItem parser sub_F2FD40; needs descriptor binding or
-        // direct head/hair state replication).
+        // Side-effects-not-replicated warning: cosmetic mask head/hair swap,
+        // and L1/L2/L3 layered-clothing coverage (uncovered shirt/chestplate
+        // when a jacket is worn) are driven by the engine's full descriptor-
+        // bound equip pipeline. Our skin changer writes a .mgraphobject path
+        // directly and the consume pass loads the mesh — but Item* is never
+        // created, m_pSlot stays NULL, and the descriptor-driven side effects
+        // (myAttributeGenType=Hat for cosmetic masks, "is jacket present"
+        // query for L1/L2 covered-variant selection) never fire.
+        //
+        // Live diff evidence (ReClass): equipping via UI sets m_Clothes[i].m_pSlot
+        // to a non-NULL asset handle and clears m_NeedsResync; equipping via our
+        // skin changer leaves m_pSlot=NULL and m_NeedsResync=1.
+        //
+        // TODO: full fix requires descriptor binding via the engine's item
+        // factory (sub_F48FE0) using descriptors looked up from InventoryConfig's
+        // by-name hashmap (sub_F04270). See project_cosmetic_mask_head_swap.md
+        // and project_clothing_coverage_l1l2l3.md memory notes for the roadmap.
         if (ls.type == GearType::CosmeticMask)
         {
             ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f),
                                "  note: this slot renders the mask only — the in-game UI also");
             ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f),
                                "  swaps the head and hides hair; that side effect isn't replicated here.");
+        }
+        else if (ls.type == GearType::Jacket
+              || ls.type == GearType::Chestplate
+              || ls.type == GearType::Shirt)
+        {
+            ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f),
+                               "  note: L1/L2 covered-variant selection is engine-driven from the");
+            ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f),
+                               "  jacket Item*; our path-only swap may cause clipping between layers.");
         }
 
         int        modelCount = 0;

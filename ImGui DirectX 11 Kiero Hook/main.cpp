@@ -324,6 +324,10 @@ HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 		{
 			tab = 4;
 		}
+		if (ImGui::Button(xor ("Agent Inspector"), ImVec2(GUI_COLUMN_OFFSET - 10, 20)))
+		{
+			tab = 5;
+		}
 		if (ImGui::Button(xor ("Settings"), ImVec2(GUI_COLUMN_OFFSET - 10, 20)))
 		{
 			tab = 999;
@@ -349,6 +353,9 @@ HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 					break;
 				case 4:
 					g_mainHandle->GetHeadManager()->DrawUI();
+					break;
+				case 5:
+					g_mainHandle->GetAgentInspector()->DrawUI();
 					break;
 				case 999:
 					g_mainHandle->GetConfigManager()->DrawUI();
@@ -420,6 +427,9 @@ void Main::Initialize()
 
 	m_pHeadManager = std::make_unique<HeadManager>();
 	std::cout << "Created the m_pHeadManager!\n";
+
+	m_pAgentInspector = std::make_unique<AgentInspector>();
+	std::cout << "Created the m_pAgentInspector!\n";
 }
 
 void Console(bool enable)
@@ -441,7 +451,7 @@ void Console(bool enable)
 // Returns TRUE when the hook is successfully set.
 DWORD WINAPI MainThread(LPVOID lpReserved)
 {
-	Console(false);
+	Console(true);
 	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 
 

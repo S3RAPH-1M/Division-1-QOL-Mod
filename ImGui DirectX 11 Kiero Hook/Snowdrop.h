@@ -22,9 +22,23 @@ namespace TD
     class EnvironmentManager;
     class GameCamera;
     class GameRenderer;
+    class InventoryConfig;
+    class InventoryHashmap;
+    class ItemDescriptor;
     class MouseInput;
+    class PlayerInventory;
+    class PlayerSessionState;
     class RogueClient;
+    class SkinItemDescriptor;
     class World;
+    class WorldConfigContainer;
+    struct OwnedItemCountRecord;
+
+    // RShared_Handle<RShared_Item> — 8-byte item handle used everywhere on the engine
+    // RPC surface (RClient_Inventory*). NOT a raw Item* — the high bits are a generation
+    // counter to detect stale references, the low bits index into a global handle table.
+    // The handle is resolved to the live Item* through Core_HandleProxy<RShared_Item>.
+    struct ItemHandle { uint64_t raw; };
 
     // 16-byte string type used pervasively in Snowdrop.
     // +0x00 QWORD heap cstring ptr (capacity at ptr-4 DWORD); +0x0F BYTE = 1 if heap, 0 if inline.
@@ -101,9 +115,23 @@ namespace TD
         BYTE               Pad4B4[0x4];         // 0x4B4
         void*              m_pComponentSet;     // 0x4B8  built by sub_1B07A60 (component-system root)
 
-        // ─── 0x4C0..0x6DF: anim-track ptr arrays, 2 small managed objects
-        //   (16B at +0x698 vtable &unk_30D6058; 208B at +0x6B0). ──────────
-        BYTE               Pad4C0[0x6E0 - 0x4C0]; // 0x4C0
+        // ─── 0x4C0..0x5AF: anim-track ptr arrays into the game-data slab (.data
+        //   region 0x1dfb74c9xxx). Each slot is an asset-record descriptor; not
+        //   exposed because indexes don't have a stable semantic meaning. ────
+        BYTE               Pad4C0[0x5B0 - 0x4C0]; // 0x4C0
+
+        // ─── ★ Player Inventory component ─────────────────────────────────
+        // Verified via decompile of sub_125E3B0 (RClient_InventoryItemTypeCount):
+        //   World+0x2B0 → mgr; mgr+0x10 → AgentInfo; AgentInfo+0x50 → Agent
+        //   (back-ref m_pAgent); Agent+0x5B0 → PlayerInventory*.
+        // Live verified: Agent[0x5B0] points to a heap struct whose vtable is
+        // g_pBase + 0x2EB9C68 and whose +0x08 stores this Agent* (back-ref).
+        // See PlayerInventory class below for full layout.
+        PlayerInventory*   m_pInventory;        // 0x5B0  ★ owned-items container
+
+        // ─── 0x5B8..0x6DF: remainder of the asset-record slab + 2 small managed
+        //   objects (16B at +0x698 vtable &unk_30D6058; 208B at +0x6B0). ────
+        BYTE               Pad5B8[0x6E0 - 0x5B8]; // 0x5B8
 
         // ─── embedded sub-object (multi-inheritance) ─────────────────────
         void*              vtable2;             // 0x6E0  &unk_30BB9A8
@@ -639,10 +667,662 @@ namespace TD
         }
     };
 
+    // ──────────────────────────────────────────────────────────────────────
+    //  ITEM DESCRIPTORS (loaded from .mitem files at startup)
+    //
+    //  Every .mitem file becomes a heap-allocated descriptor instance owned
+    //  by InventoryConfig. The factory sub_F48FE0 dispatches on the class
+    //  tag string in the .mitem header and picks one of ~20 ctors. The base
+    //  class is Item (704B, vtable g_pBase + 0x2CB9E38); ArmorItem extends
+    //  it to 688B with armor metadata; WeaponItem to 1008B; SkinItem family
+    //  (BackpackSkinItem / WeaponSkinItem / PatchSkinItem) to 768B.
+    //
+    //  These structs describe the descriptor's parsed metadata. They are
+    //  shared/immutable — multiple owned-item instances share the same
+    //  descriptor. The player's per-instance state (mods, rolls, sockets)
+    //  lives in a separate vector that PlayerInventory's hashmaps map to.
+    // ──────────────────────────────────────────────────────────────────────
+
+    // Item base descriptor (688 bytes for ArmorItem). Verified offsets from
+    // both the .mitem parser sub_F2FD40 AND live readback of 7+ descriptor
+    // instances on this session (MP5 SMG, HoloScope mod, GearMod_Generated,
+    // grenade, classified mask, classified backpack, incendiary ammo).
+    //
+    // Same struct shape applies to NPCArmorItem and BalaclavaMask (only the
+    // myEquipmentSlot / myAttributeGenType / myInventoryCategory enum values
+    // differ).
+    //
+    // Layout note: the SnowdropString at +0x18 occupies 16 bytes (ends at
+    // +0x28). Empirically there is a 4-byte padding gap at +0x28..+0x2B,
+    // and m_Quality starts at +0x2C. Earlier drafts of this header (and
+    // CLAUDE.md table column-counts) implicitly assumed m_Quality at +0x28,
+    // which was off by 4. The correct offsets are below — verified.
+    class ItemDescriptor
+    {
+    public:
+        void*           vtable;                  // 0x000  &(g_pBase + 0x2CA74A0) for ArmorItem
+        uint8_t         m_Uid[16];               // 0x008  16-byte UID from < uid=… > header
+        SnowdropString  m_Identifier;            // 0x018  e.g. "player_weapon_submachinegun_mp5_t1_v1"
+        BYTE            Pad28[4];                // 0x028  alignment gap
+        int32_t         m_Quality;               // 0x02C  myQuality enum (live: 0/2/3 commonly)
+        int32_t         m_MaxPossessionCount;    // 0x030  myMaxPossessionCount (-1 = unlimited)
+        int32_t         m_SocketCount;           // 0x034  mySocketCount
+        int32_t         m_PrescriptedPowerLevel; // 0x038  myPrescriptedPowerLevel
+        int32_t         m_Subtype;               // 0x03C  mySubtype
+        int32_t         m_EquipmentSlot;         // 0x040  ★ myEquipmentSlot (verified live:
+                                                 //   13=WeaponModifier, 14=WeaponSlot, 17=Marksman
+                                                 //   AmmoSlot, etc.). Enum at game string 0x2CA04E0.
+        int32_t         m_AttributeGenType;      // 0x044  ★ myAttributeGenType — drives renderer
+                                                 //   side effects (cosmetic masks set this to Hat
+                                                 //   to trigger head/hair swap)
+        BYTE            Pad048[0x58 - 0x48];     // 0x048
+        int32_t         m_InventoryCategory;     // 0x058  myInventoryCategory
+        BYTE            Pad05C[4];               // 0x05C
+        uint8_t         m_CodeVersion;           // 0x060
+        uint8_t         m_DataVersion;           // 0x061
+        uint8_t         m_IsLootedAutomatically; // 0x062
+        uint8_t         m_IsEquippable;          // 0x063
+        uint8_t         m_CanUnequip;            // 0x064
+        uint8_t         m_IsUsable;              // 0x065
+        uint8_t         m_IsDestroyable;         // 0x066
+        uint8_t         m_CanBeSold;             // 0x067
+        uint8_t         m_CanBeTraded;           // 0x068
+        uint8_t         m_ShouldGenerateItem;    // 0x069
+        uint8_t         m_ShouldGenerateName;    // 0x06A
+        uint8_t         m_ShouldGenerateModel;   // 0x06B
+        uint8_t         m_OverwriteSubtype;      // 0x06C
+        uint8_t         m_IsExotic;              // 0x06D
+        BYTE            Pad06E[2];               // 0x06E
+        uint8_t         m_IsClassified;          // 0x070
+        BYTE            Pad071[0xF];             // 0x071
+        SnowdropString  m_IconImage;             // 0x080  myIconImage path
+        BYTE            Pad090[0x10];            // 0x090
+        SnowdropString  m_IconSprite;            // 0x098  myIconSprite ref
+        BYTE            Pad0A8[0x18];            // 0x0A8
+        SnowdropString  m_UIName;                // 0x0B0  myUIName (display name)
+        BYTE            Pad0C0[0x30];            // 0x0C0
+        SnowdropString  m_Description;           // 0x0F0  myDescription
+        BYTE            Pad100[0x30];            // 0x100
+        SnowdropString  m_ShortDescription;      // 0x130  myShortDescription
+        BYTE            Pad140[0x20];            // 0x140
+        SnowdropString  m_MaleVisualGearName;    // 0x170  ★ male .mgraphobject path
+        SnowdropString  m_FemaleVisualGearName;  // 0x180  ★ female .mgraphobject path
+        SnowdropString  m_ResolvedMalePath;      // 0x190  computed via sub_F00FE0 at load
+        SnowdropString  m_ResolvedFemalePath;    // 0x1A0  same, female
+        BYTE            Pad1B0[0x2B0 - 0x1B0];   // 0x1B0  level/power-level fields + asset refs
+    }; // sizeof = 0x2B0 (688 bytes)
+
+    // SkinItem descriptor (768 bytes) — shared by BackpackSkinItem, WeaponSkinItem,
+    // PatchSkinItem. vtable g_pBase + 0x2CBA028. Layout = Item base 688B
+    // + 80B of skin-specific state. Verified live against b_camo_solid_pink.
+    class SkinItemDescriptor : public ItemDescriptor
+    {
+    public:
+        SnowdropString  m_SkinTexture;           // +688 (0x2B0)  ★ mySkinTexture .dds path
+        SnowdropString  m_OverrideDiffuse;       // +704 (0x2C0)  empty on default skins
+        SnowdropString  m_OverrideNormal;        // +720 (0x2D0)  empty on default skins
+        float           m_RotationU;             // +736 (0x2E0)  myRotationU
+        float           m_RotationV;             // +740 (0x2E4)  myRotationV
+        float           m_ScaleX;                // +744 (0x2E8)  myScaleX (default 1.0)
+        float           m_ScaleY;                // +748 (0x2EC)  myScaleY (default 1.0)
+        uint32_t        m_Color1_ARGB;           // +752 (0x2F0)  myColor1 (ARGB packed)
+        uint32_t        m_Color2_ARGB;           // +756 (0x2F4)  myColor2
+        uint32_t        m_Color3_ARGB;           // +760 (0x2F8)  myColor3
+        uint32_t        field_2FC;               // +764 (0x2FC)
+    }; // sizeof = 0x300 (768 bytes)
+
+    // ──────────────────────────────────────────────────────────────────────
+    //  INVENTORY SUBSYSTEM
+    //
+    //  The Division has two parallel inventory data structures:
+    //
+    //    1. InventoryConfig — global descriptor cache. Holds one Item* per
+    //       .mitem file in the game (4634 on this build). Indexed by name
+    //       and by 16-byte UID. This is what InventoryConfig::LookupByName
+    //       returns; the wrapper sub_F07C40 normalizes the name first.
+    //
+    //    2. PlayerInventory — per-Agent owned-items store. Lives on the
+    //       Agent at +0x5B0. Holds the items the player has picked up /
+    //       crafted / been given. Items are keyed by their descriptor
+    //       (the same Item* you'd get from InventoryConfig::LookupByName)
+    //       and each key maps to a vector of instance records.
+    //
+    //  The MC scripting RPCs all live on these two:
+    //    RClient_Inventory{ItemCount,ItemTypeCount,CategoryItem,EquipItem,
+    //                      RequestEquipItem,UnEquipItem,DeleteItem,DropItem,…}
+    //    → dispatched against PlayerInventory.
+    //    RClient_InventoryItemPouch / pouch capacity / pouch new-items
+    //    → dispatched against the per-pouch sub-container within PlayerInventory.
+    //
+    //  Items are passed around the engine as RShared_Handle<RShared_Item>
+    //  (8-byte handle with generation counter), NOT as raw Item*. Resolve
+    //  via Core_HandleProxy<RShared_Item>. See ItemHandle above.
+    // ──────────────────────────────────────────────────────────────────────
+
+    // 9-value enum used by every Inventory_* RPC. Names taken from the engine
+    // string table at 0x2EBA580 / FormulaAttribute strings (DarkZoneInventoryFinal,
+    // DefaultInventoryFinal, ResourceInventoryFinal, …). Numeric values are
+    // *probable* — verify against engine when actually keying.
+    enum class InventoryPouchType : int32_t
+    {
+        Default        = 0,
+        Resource       = 1,
+        Vanity         = 2,
+        BackupSpace    = 3,
+        Stash          = 4,
+        DarkZone       = 5,
+        DarkZoneStash  = 6,
+        Mailbox        = 7,
+        SurvivalStash  = 8,
+    };
+
+    // PlayerInventory partitions its contents across 8 category-tagged
+    // hashmaps. The tag byte at InventoryHashmap+0x18 encodes which kind.
+    // Verified live by reading the FIRST bucket entry's descriptor in
+    // each map — labels are inferred from that one example per map, not
+    // exhaustively confirmed.
+    //
+    // ★ CAVEAT: map[1] is NOT the player's actual equipped weapon set.
+    // Disproven 2026-05-11 — user's real loadout (ACR / M870 / 93R / M4
+    // Exotic) never appeared in map[1], and weapon swaps don't update it.
+    // Map[1]'s real semantics are TBD (possibly a shooting-range loadout
+    // or a script reference cache). Real equipped weapons live in
+    // RShared_InventoryWeaponSet, accessed via the RClient_GetWeapon-
+    // FromInventoryWeaponSet RPC — that struct has not been located yet.
+    enum class PlayerInventoryCategory : int32_t
+    {
+        GearMods       = 0,  // GearMod_Generated_Item etc — gear sockets
+        UnknownMap1    = 1,  // ★ NOT real equipped weapons; semantics TBD
+        Talents        = 2,  // talent registry (e.g. "Bullseye"); .data-backed,
+                             //   759 entries — this is the global pool, not owned
+        Grenades       = 3,  // HE_grenade, flashbang, etc.
+        Armor          = 4,  // body / face / hands / knees / thighs armor pieces
+        BackpackOrSet  = 5,  // classified set pieces (back-slot armor + ?)
+        Resources      = 6,  // ammo, consumables, crafting tokens
+        Reserved7      = 7,  // ★ empty on this session — likely vanity / sets
+    };
+
+    // ★ Consumable stack counts AND every currency the player owns live
+    // in the heap-allocated `PlayerSessionState` struct (see class below).
+    // It is NOT in the PlayerInventory hashmaps or in the 6 OwnedItemInstance
+    // slot records — those track distinct owned-descriptor instances, not
+    // stack counts.
+    //
+    // PlayerSessionState is gameplay-authoritative (write-freeze verified
+    // changes the actual in-game value). Roughly 10 downstream mirror
+    // addresses in .data slab and other heap arenas update each frame.
+    //
+    // ★ VERIFIED FIELD OFFSETS (relative to PlayerSessionState base):
+    //   +0x000  Grenade count
+    //   +0x040  Medkit count
+    //   +0x440  Premium Credits (paid currency)
+    //   +0x460  Credits
+    //   +0x480  Dark Zone Fund
+    //   +0x4A0  Phoenix Credits
+    //   +0x4C0  Target Intel
+    //   +0x4E0  Dark Zone Keys
+    //   +0x8C0  Global Event (GE) Credits
+    //
+    // The currency entries at +0x2F0..+0x7DF are 32-byte records
+    // (UUID + DWORD count + 12-byte padding); see OwnedItemCountRecord.
+    //
+    // For mod purposes: read/write directly via PlayerSessionState::Credits()
+    // etc. (inline accessors below). The struct's heap base is session-
+    // specific — see PlayerSessionState class comment for rediscovery
+    // fingerprint (Credits UUID at +0x450 within the struct).
+    //
+    // See memory file project-currency-table.md for the full layout, all
+    // 7 known currencies + GE Credits, UUID family analysis, and the
+    // currency-index pointer array.
+
+    // 21 (= 0x15) string-tag dispatched item classes used by the .mitem item
+    // factory sub_F48FE0 (descriptor parser, not the player's inventory).
+    // Each tag selects one of ~20 ctors (see CLAUDE.md "Item / AssetRecord
+    // class hierarchy" for sizes + ctor addresses).
+    enum class ItemFactoryClass : int32_t
+    {
+        ArmorItem       = 0,
+        WeaponItem      = 1,
+        ConsumableItem  = 2,
+        ModItem         = 3,
+        CraftingItem    = 4,
+        QuestItem       = 5,
+        BundleItem      = 6,
+        MysteryBoxItem  = 7,
+        CurrencyItem    = 8,
+        NPCArmorItem    = 9,
+        WeaponSkinItem  = 10,
+        BackpackSkinItem= 11,
+        PatchSkinItem   = 12,
+        // values 13..20 cover HVTContractItem, Loadout, etc.
+    };
+
+    // Hashmap<Item*, Vector<ItemHandle>> — one entry per item descriptor the
+    // player owns; the value vector lists the live instance handles. The
+    // hashmap struct is 0x3A0 bytes (verified by stride between consecutive
+    // maps in PlayerInventory: 0x21fc6d52b80 → 0x21fc6d52f20 → 0x21fc6d532c0
+    // → … all spaced 0x3A0 apart).
+    //
+    // The 8 hashmaps that PlayerInventory owns are tagged 0..7 in the
+    // PlayerInventoryCategory enum byte at +0x18 — that's how the engine
+    // knows which category each map represents.
+    //
+    // Bucket layout (24 bytes per entry, verified from sub_F08450 hash walk
+    // and confirmed live on every map's first entry):
+    //   +0x00 Item*    m_KeyDescriptor    (.mitem descriptor — InventoryConfig entry)
+    //   +0x08 void*    m_ValuePtr         (heap array of instance records or handles)
+    //   +0x10 uint32_t m_ValueCount       (entries in the value array)
+    //   +0x14 uint32_t m_ValueCapacity    (allocated cap)
+    //
+    // After cap*24 bytes of entries, the buckets array continues with a
+    // chain table of int[2*cap] used as a linked-list-of-next-indices for
+    // hash-collision resolution. Hash function is Fibonacci-mix
+    // (2135587865 * key XOR (0x9E3779B97F4A7C19 * key >> 32)) mod (2*cap-1).
+    //
+    // Probing: sub_F08450(playerInventory, descriptor, &outVec) iterates
+    // exactly 4 hashmaps at PI+0x158..+0x170 (i.e. the first half of the
+    // category array — categories 0..3). The remaining maps at +0x178..+0x190
+    // are walked by similar functions specialized for the higher categories.
+    class InventoryHashmap
+    {
+    public:
+        void*                    vtable;        // 0x000  &(g_pBase + 0x2DC8FB0)
+        PlayerInventory*         m_pOwner;      // 0x008  back-ref to enclosing PlayerInventory
+        void*                    m_pAllocator;  // 0x010  shared allocator handle
+        PlayerInventoryCategory  m_CategoryId;  // 0x018  ★ which category this map holds
+        int32_t                  field_1C;      // 0x01C
+        void*                    m_Buckets;     // 0x020  array of 24-byte entries (see above)
+        uint32_t                 m_Count;       // 0x028  live entries
+        uint32_t                 m_Capacity;    // 0x02C
+        void*                    m_pAuxArray;   // 0x030  sometimes secondary index
+        // remaining ~0x370 bytes = scratch/sort buffers; not exposed.
+    }; // sizeof ≈ 0x3A0
+
+    // ★ PlayerInventory — per-Agent owned-items container.
+    //
+    // Reached via Agent::m_pInventory (Agent + 0x5B0). Verified live:
+    //   vtable = g_pBase + 0x2EB9C68
+    //   +0x008 = the owning Agent* (e.g. the local player)
+    //   +0x158..+0x190 = eight inventory hashmaps (see m_CategoryMaps below;
+    //                    sub_F08450 only walks the first four)
+    //
+    // Use sub_F08450(playerInventory, item_descriptor, &out_vec) to look up
+    // every owned instance for a given descriptor across the first four
+    // hashmaps. Use the engine RClient_* RPCs (registered in sub_1397E90)
+    // for higher-level queries — see CLAUDE.md "Inventory / Item-descriptor
+    // / Equip pipeline" for the full RPC surface.
+    //
+    // Internal pools at +0x080..+0x0A8 (6 ptrs) and +0x128..+0x148 (5–6 ptrs)
+    // point into the .data slab 0x19fd2b1xxx — they're OwnedItemInstance
+    // records (96 bytes; see project_player_inventory.md memory note).
+    // The actual ownership tables are the 8 hashmaps below.
+    class PlayerInventory
+    {
+    public:
+        void*               vtable;                 // 0x000  &(g_pBase + 0x2EB9C68)
+        Agent*              m_pOwner;               // 0x008  ★ owning Agent (player or NPC)
+        void*               m_pNetMgr;              // 0x010  network/sync subsystem
+        void*               m_pSboBuffer;           // 0x018  pre-allocated working buffer
+        void*               m_pSlotTable1;          // 0x020  equipped-slot table (weapons / armor slots)
+        void*               m_pSlotTable2;          // 0x028
+        void*               m_pSlotTable3;          // 0x030
+        void*               m_pSlotTable4;          // 0x038
+        void*               m_pSlotTable5;          // 0x040
+        void*               m_pStorage1;            // 0x048
+        void*               m_pStorage2;            // 0x050
+        void*               m_pStorage3;            // 0x058
+        uint32_t            m_Flags;                // 0x060  packed flags (live 0x123D0101)
+        uint32_t            field_64;               // 0x064
+        uint32_t            m_TotalItemCount;       // 0x068  live: ~276
+        uint32_t            m_TotalItemCapacity;    // 0x06C  live: ~289
+        uint64_t            m_UpdateSequence;       // 0x070  bumped on every change; drives
+                                                    //         RClient_GetInventoryUpdateCount
+
+        BYTE                Pad078[0x80 - 0x78];    // 0x078
+
+        // Category descriptor slots (6 entries — likely matches the 6 visible
+        // pouches in the UI). Each points into .data at 0x19fd2b1xxx.
+        void*               m_pCategorySlots[6];    // 0x080..0x0AF
+
+        BYTE                Pad0B0[0x158 - 0x0B0];  // 0x0B0  3 more sparse slots + sort caches
+
+        // ★ The 8 category-partitioned inventory hashmaps.
+        //
+        // Each map is tagged with its category-id at InventoryHashmap+0x18
+        // (verified live: maps[0..7] have ids 0..7 stored there). The 8 maps
+        // are co-allocated in one slab at stride 0x3A0, so consecutive
+        // m_CategoryMaps[i] pointers walk through a contiguous range.
+        //
+        // Index → category (sampled by one descriptor per map; labels
+        // inferred from that single example except where noted):
+        //   [0] GearMods         live: 30 entries  (e.g. Player_GearMod_Generated_Item x12)
+        //   [1] ★ TBD            live: 2  entries  (MP5 SMG + HoloScope mod) —
+        //                                      NOT the real equipped weapons.
+        //                                      Disproven by weapon-swap diff test.
+        //   [2] Talents          live: 759 entries — GLOBAL talent registry, not owned;
+        //                                      buckets are in the game module .data
+        //                                      segment (~0x1dfbba15800), read-only.
+        //   [3] Grenades         live: 13 entries  (HE/flashbang/etc.)
+        //   [4] Armor            live: 88 entries  (face/chest/hands/knees/thighs/back)
+        //   [5] BackpackOrSet    live: 18 entries  (classified set pieces, back-armor)
+        //   [6] Resources        live: 14 entries  (ammo / consumables)
+        //   [7] Reserved7        live: 0  entries  (NULL buckets — unused this session)
+        //
+        // sub_F08450(pi, descriptor, &outVec) iterates exactly the first 4
+        // (maps[0..3]). Higher categories have their own walkers — the access
+        // pattern is the same: hash → probe → push (value_ptr, value_count).
+        //
+        // ★ Hashmap bucket counts are NOT consumable stack counts. The
+        // bucket's (count, cap) at +0x10/+0x14 records the number of
+        // distinct owned instances of that descriptor (e.g. 1 medkit
+        // instance with stack=4 → bucket count=1, not 4). The actual stack
+        // count lives in a heap-allocated consumable-state struct
+        // (grenade@+0x00, medkit@+0x40) — see PlayerInventoryCategory enum
+        // comment above and project_consumable_status.md memory note.
+        InventoryHashmap*   m_CategoryMaps[8];      // 0x158..0x190
+
+        void*               m_pLoadoutTable;        // 0x198  vector<Loadout*>
+        BYTE                Pad1A0[8];              // 0x1A0
+        void*               m_pPouchStateArray;     // 0x1A8  per-pouch state (capacity, dirty flag)
+
+        // 6 ptrs into .data — string interning table for pouch names.
+        void*               m_pPouchNameTable[6];   // 0x1B0..0x1DF
+
+        // The struct continues beyond 0x1E0 with per-pouch state buffers,
+        // sort indices, and the new-item bitfield. Not yet fully mapped.
+        BYTE                Pad1E0[0x100];          // 0x1E0  reserve (verify when extending)
+    };
+
+    // ──────────────────────────────────────────────────────────────────────
+    //  PLAYER SESSION STATE — consumables, currencies, GE Credits, and a
+    //  generic owned-item-count table.
+    //
+    //  Single heap-allocated struct holding everything the player session
+    //  exposes as a "current quantity" — grenade/medkit stacks, all
+    //  currencies (Credits, DZ Fund, Phoenix, GE, Premium, Target Intel,
+    //  Dark Zone Keys), perk-progression tokens, season caches, and many
+    //  other (UUID, count) records.
+    //
+    //  ★ Confirmed gameplay-authoritative master via write-freeze:
+    //  freezing any field here actually changes the in-game value and
+    //  propagates to ~10 downstream mirror addresses (engine .data
+    //  caches + UI list-stores).
+    //
+    //  Layout reverse-engineered against TheDivision.exe live session
+    //  2026-05-11. Offsets relative to the grenade-count field which
+    //  appears to be the struct base.
+    //
+    //  REDISCOVERY: this struct is reachable from PlayerInventory but the
+    //  exact pointer slot has not been pinned yet. Fingerprint for
+    //  scanning: at +0x460 from any heap allocation > 0x900 bytes, expect
+    //  Credits UUID `9c bf 9e 53 a2 de 5d 4f 3b 62 76 f1 54 15 00 00` 16
+    //  bytes earlier (= +0x450). Or use the verified Credits-master
+    //  address from Cheat Engine, then subtract 0x460 to get the base.
+    //
+    //  Use the inline GetPlayerSessionState() helper below once you have
+    //  a way to walk to this struct from a stable pointer.
+    // ──────────────────────────────────────────────────────────────────────
+
+    // Generic 32-byte record in the OwnedItemCount table.
+    // Indexed by item UUID (which matches the `< uid=… >` in .mitem files).
+    // Currencies, perk tokens, keys, vanity unlocks, season caches all use
+    // this same shape.
+    struct OwnedItemCountRecord
+    {
+        uint8_t  m_Uid[16];      // 0x00  16-byte item UUID
+        uint32_t m_Count;        // 0x10  owned amount / count
+        BYTE     Pad14[0x0C];    // 0x14  padding / reserved (always zero observed)
+    }; // sizeof = 0x20 (32 bytes)
+
+    // ★ PlayerSessionState — heap-allocated, gameplay-authoritative.
+    //
+    // Reachable from PlayerInventory (`Agent+0x5B0`) but the specific
+    // pointer slot is not yet identified. Once located, use the offsets
+    // below to read/write any player resource without scanning.
+    class PlayerSessionState
+    {
+    public:
+        // ── Consumable stack counts ─────────────────────────────────────
+        uint32_t m_GrenadeCount;          // 0x000  ★ verified master
+        BYTE     Pad004[0x03C];           // 0x004
+        uint32_t m_MedkitCount;           // 0x040  ★ verified master
+        BYTE     Pad044[0x2AC];           // 0x044  (TBD: signature ammo,
+                                          //   armor kits, skill resources,
+                                          //   weapon perk stacks, XP, etc.)
+
+        // ── OwnedItemCount table at +0x2F0 ──────────────────────────────
+        // ~32 records of (UUID, count) at +0x2F0..+0x7DF (and possibly
+        // beyond). Walk by stride 0x20. The currency / token entries
+        // below have verified UUID→meaning mappings.
+        // Access via FindByUid() helper, OwnedItemTable(), or the named
+        // accessors. No member declared here to avoid a zero-sized-array
+        // extension warning.
+
+        // ── Named currency records (all verified live by user) ─────────
+        // Each is at a fixed offset within m_OwnedItemTable.
+        // Layout per slot: UUID@+0x00, count@+0x10 (use the +N below
+        // for the COUNT directly):
+        //   Premium Credits  — paid currency, UUID family `e2 01 58 07`
+        //   Credits          — main currency, UUID family `a2 de 5d 4f`
+        //   DZ Fund          — Dark Zone currency, same family
+        //   Phoenix Credits  — endgame currency, family `e2 01 58 07`
+        //   Target Intel     — high-value-target tokens, family `a2 de 5d 4f`
+        //   Dark Zone Keys   — DZ chest-unlock keys, family `dc c9 42 c7`
+        //   GE Credits       — Global Event currency, standalone DWORD
+        // (Two unused slots with UUID family `00 26 31 5d` precede these;
+        //  they're zero-valued event-currency placeholders.)
+
+        // Base pointer to the OwnedItemCount table (records at stride 0x20).
+        OwnedItemCountRecord* OwnedItemTable() {
+            return reinterpret_cast<OwnedItemCountRecord*>(
+                reinterpret_cast<BYTE*>(this) + 0x2F0);
+        }
+
+        // Inline accessors — convenient direct read/write
+        uint32_t& PremiumCredits()  { return *(uint32_t*)((BYTE*)this + 0x440); }
+        uint32_t& Credits()         { return *(uint32_t*)((BYTE*)this + 0x460); }
+        uint32_t& DZFund()          { return *(uint32_t*)((BYTE*)this + 0x480); }
+        uint32_t& PhoenixCredits()  { return *(uint32_t*)((BYTE*)this + 0x4A0); }
+        uint32_t& TargetIntel()     { return *(uint32_t*)((BYTE*)this + 0x4C0); }
+        uint32_t& DZKeys()          { return *(uint32_t*)((BYTE*)this + 0x4E0); }
+        uint32_t& GECredits()       { return *(uint32_t*)((BYTE*)this + 0x8C0); }
+        uint32_t& Grenades()        { return *(uint32_t*)((BYTE*)this + 0x000); }
+        uint32_t& Medkits()         { return *(uint32_t*)((BYTE*)this + 0x040); }
+
+        // The struct continues past +0x8D0 (another nested object with
+        // vtable g_pBase + 0x5491980 — unmapped). Total size estimated
+        // > 0x900 bytes.
+
+        // Lookup a record by 16-byte UUID. Walks the table forwards until
+        // it finds a matching UUID or runs out. Useful for currencies /
+        // tokens whose offset we haven't pinned.
+        OwnedItemCountRecord* FindByUid(const uint8_t uid[16])
+        {
+            OwnedItemCountRecord* rec = OwnedItemTable();
+            for (int i = 0; i < 64; ++i, ++rec)  // safety cap at 64 records (2 KB)
+            {
+                bool match = true;
+                for (int b = 0; b < 16; ++b)
+                {
+                    if (rec->m_Uid[b] != uid[b]) { match = false; break; }
+                }
+                if (match) return rec;
+                // Stop if we hit an unallocated zero-UUID record after a non-zero
+                // — uninitialized memory check.
+                uint64_t* u64 = (uint64_t*)rec->m_Uid;
+                if (i > 8 && u64[0] == 0 && u64[1] == 0) return nullptr;
+            }
+            return nullptr;
+        }
+    };
+
+    // ★ Known currency UUIDs (verified 2026-05-11 against .mitem descriptors).
+    // Stable across sessions — they don't change unless the game's item
+    // database is rebuilt. Use with PlayerSessionState::FindByUid().
+    namespace CurrencyUid
+    {
+        // family `a2 de 5d 4f` — earned in-game (cash + similar)
+        static constexpr uint8_t Credits[16] =
+            { 0x9c, 0xbf, 0x9e, 0x53, 0xa2, 0xde, 0x5d, 0x4f,
+              0x3b, 0x62, 0x76, 0xf1, 0x54, 0x15, 0x00, 0x00 };
+        static constexpr uint8_t DZFund[16] =
+            { 0xc8, 0xef, 0x9e, 0x53, 0xa2, 0xde, 0x5d, 0x4f,
+              0x76, 0x4f, 0xbb, 0x2c, 0x8b, 0x03, 0x00, 0x00 };
+        static constexpr uint8_t TargetIntel[16] =
+            { 0x89, 0x4a, 0x98, 0x53, 0xa2, 0xde, 0x5d, 0x4f,
+              0xf5, 0x06, 0x61, 0x30, 0x34, 0x16, 0x00, 0x00 };
+        // family `e2 01 58 07` — token currencies
+        static constexpr uint8_t PremiumCredits[16] =
+            { 0x75, 0xc6, 0x25, 0x58, 0xe2, 0x01, 0x58, 0x07,
+              0x46, 0x97, 0xf9, 0xa2, 0xb8, 0x12, 0x00, 0x00 };
+        static constexpr uint8_t PhoenixCredits[16] =
+            { 0x1b, 0x92, 0xd4, 0x55, 0xe2, 0x01, 0x58, 0x07,
+              0xe9, 0xf3, 0xf1, 0x5d, 0x62, 0x0a, 0x01, 0x00 };
+        // family `dc c9 42 c7` — special-unlock items
+        static constexpr uint8_t DZKeys[16] =
+            { 0xff, 0x32, 0xf8, 0x54, 0xdc, 0xc9, 0x42, 0xc7,
+              0x57, 0x4e, 0x50, 0x21, 0x6c, 0x88, 0x00, 0x00 };
+    }
+
+    // ★ InventoryConfig — global .mitem descriptor cache.
+    //
+    // Reached via World::m_pConfigContainer + 0xD8, or equivalently
+    // Client+0x18 → +0xD8 (same address). Built once at startup by
+    // sub_F49920, which globs rogue/game system data/juice/item/*.mitem
+    // and registers each through sub_F7D9A0 (which calls sub_E5EF10 to
+    // insert into the by-name map and sub_E660C0 for by-UID).
+    //
+    // Live on this build: 4634 descriptors / 5394 cap, by-name and by-UID
+    // hashmaps both 4634/8191. Sub-arrays at +0x30..+0x60 partition the
+    // descriptors by class (verified by counts):
+    //   +0x30  Item*[]  count 89   (likely ArmorItem)
+    //   +0x40  Item*[]  count 25   (WeaponItem)
+    //   +0x50  Item*[]  count 5    (small specialized class)
+    //   +0x60  Item*[]  count 19   (etc.)
+    //
+    // Lookup engine functions (g_pBase + offset):
+    //   0xF04270 sub_F04270(hashmap, name)        → slot index (-1 if not found)
+    //   0xF07C40 sub_F07C40(cfg, name)            → Item* (normalizes name)
+    //   0xCEA470 sub_CEA470(parent, name)         → wrapper: reads cfg from parent+0xD8
+    //   0xF49920 sub_F49920                       → bulk loader (startup)
+    //   0xF7D9A0 sub_F7D9A0(cfg, desc, summary)   → register one descriptor
+    class InventoryConfig
+    {
+    public:
+        void*       vtable;                  // 0x000  &(g_pBase + 0x306A578)
+        void*       vtable2;                 // 0x008  paired vtable (multi-inheritance)
+        void*       m_pAllocator;            // 0x010
+        int32_t     field_18;                // 0x018  2
+        int32_t     field_1C;                // 0x01C  2
+
+        // ── Main descriptor array — every .mitem loaded ─────────────────
+        void**      m_pDescriptorArray;      // 0x020  Item*[]  live: 4634 entries
+        uint32_t    m_DescriptorCount;       // 0x028
+        uint32_t    m_DescriptorCapacity;    // 0x02C
+
+        // ── Category sub-arrays — same descriptors partitioned by class.
+        //    Each is (ptr, count, cap). Six in total at +0x30..+0x70.
+        void**      m_pCategory0_Ptr;        // 0x030  live: 89 entries
+        uint32_t    m_Category0_Count;       // 0x038
+        uint32_t    m_Category0_Cap;         // 0x03C
+        void**      m_pCategory1_Ptr;        // 0x040  live: 25 entries
+        uint32_t    m_Category1_Count;       // 0x048
+        uint32_t    m_Category1_Cap;         // 0x04C
+        void**      m_pCategory2_Ptr;        // 0x050  live: 5 entries
+        uint32_t    m_Category2_Count;       // 0x058
+        uint32_t    m_Category2_Cap;         // 0x05C
+        void**      m_pCategory3_Ptr;        // 0x060  live: 19 entries
+        uint32_t    m_Category3_Count;       // 0x068
+        uint32_t    m_Category3_Cap;         // 0x06C
+        int32_t     m_Category4_Count;       // 0x070
+        int32_t     field_74;                // 0x074
+        void**      m_pCategory4_Ptr;        // 0x078
+
+        // ── 5 sub-pools at +0x80..+0xA0 (5 contiguous pointers) — these are
+        //    template/parent-descriptor groups (e.g. armor_template, weapon_template).
+        void*       m_pTemplateGroups[5];    // 0x080..0x0A7
+        void*       m_pIconTable;            // 0x0A8
+
+        BYTE        Pad0B0[0xC0 - 0xB0];     // 0x0B0
+
+        // Small lookup tables — used by minor sub-systems. Each (ptr, count, cap).
+        void**      m_pTable_C8_Ptr;         // 0x0C8  live: count 7 / cap 8
+        uint32_t    m_Table_C8_Count;        // 0x0D0
+        uint32_t    m_Table_C8_Cap;          // 0x0D4
+        void**      m_pTable_D8_Ptr;         // 0x0D8  live: count 10 / cap 12
+        uint32_t    m_Table_D8_Count;        // 0x0E0
+        uint32_t    m_Table_D8_Cap;          // 0x0E4
+
+        BYTE        Pad0E8[0x128 - 0x0E8];   // 0x0E8
+
+        void**      m_pTable_128_Ptr;        // 0x128  live: count 44 / cap 62
+        uint32_t    m_Table_128_Count;       // 0x130
+        uint32_t    m_Table_128_Cap;         // 0x134
+        void**      m_pTable_138_Ptr;        // 0x138
+
+        BYTE        Pad140[0x170 - 0x140];   // 0x140
+
+        // ★ Primary lookup: by-name hashmap.
+        // sub_F07C40(cfg, name) calls sub_F04270 against this and returns
+        // *(QWORD*)(buckets + 24*slot + 16) on hit (descriptor pointer is
+        // at offset +16 of each entry, key string at +0..+8 / +0..+15).
+        void*       m_NameHashmap_Buckets;   // 0x170
+        uint32_t    m_NameHashmap_Count;     // 0x178  live: 4634
+        uint32_t    m_NameHashmap_Capacity;  // 0x17C  live: 8191
+
+        // Secondary hashmaps (verified live):
+        void*       m_Hashmap_180_Buckets;   // 0x180  count 89 / cap 127
+        uint32_t    m_Hashmap_180_Count;     // 0x188
+        uint32_t    m_Hashmap_180_Capacity;  // 0x18C
+        void*       m_Hashmap_190_Buckets;   // 0x190  count 25 / cap 31
+        uint32_t    m_Hashmap_190_Count;     // 0x198
+        uint32_t    m_Hashmap_190_Capacity;  // 0x19C
+
+        // ★ Secondary lookup: by 16-byte UID hashmap.
+        // Built by sub_E660C0 during sub_F7D9A0. Entry key = item's UID
+        // (from < uid=XXXX > in the .mitem header, stored at descriptor +8).
+        void*       m_UidHashmap_Buckets;    // 0x1A0
+        uint32_t    m_UidHashmap_Count;      // 0x1A8  live: 4634
+        uint32_t    m_UidHashmap_Capacity;   // 0x1AC  live: 8191
+
+    public:
+        // Resolve an item name to its Item* descriptor. Wraps sub_F07C40.
+        // The wrapper auto-normalizes the name (lowercased via sub_16D9F0)
+        // so case in the input doesn't matter.
+        void* LookupByName(const char* itemName)
+        {
+            typedef void* (__fastcall* tLookup)(InventoryConfig*, const char*);
+            tLookup Lookup = (tLookup)(g_pBase + 0xF07C40);
+            return Lookup(this, itemName);
+        }
+    };
+
+    // The struct stored at *(QWORD*)(World + 0x138). Owns InventoryConfig at
+    // +0xD8 and many other engine config tables. The hot field for us is the
+    // InventoryConfig pointer. Other slots are session-internal subsystems
+    // that we don't need to expose. Reached identically via Client+0x18.
+    class WorldConfigContainer
+    {
+    public:
+        void*               vtable;                 // 0x000
+        BYTE                Pad008[0xD0];           // 0x008  session subsystem pointers
+        InventoryConfig*    m_pInventoryConfig;     // 0x0D8  ★ descriptor cache
+        // … many more config-table pointers continue past 0xE0; not exposed.
+    };
+
     class World
     {
     public:
-        BYTE Pad000[0x2B0];
+        BYTE Pad000[0x138];
+        // ★ World+0x138 is a back-reference to the World's config container.
+        // Verified via decompile of sub_125E3B0:
+        //   v15 = sub_CEA470(*(QWORD*)(World + 0x138), itemName)
+        // where sub_CEA470(parent, name) reads parent+0xD8 as InventoryConfig*
+        // and calls sub_F07C40 on it. So this field is the parent struct that
+        // owns InventoryConfig + many other engine config tables.
+        // (Live: also reachable via Client+0x18 — same address.)
+        WorldConfigContainer* m_pConfigContainer; // 0x138
+        BYTE Pad140[0x2B0 - 0x140];
         __int64 m_pInput; // 0x2B0
         BYTE Pad02B8[0x10];
         HudSettings* m_pDoF; // 0x2C8
@@ -650,9 +1330,40 @@ namespace TD
         BYTE Pad2D8[0xE8];
         EnvironmentManager* m_pEnvironmentManager; // 0x3C0
         BYTE Pad3C8[0x68];
-        Agent** m_AgentArray;
-        int m_AgentCount;
+        Agent** m_AgentArray; // 0x430
+        int m_AgentCount;     // 0x438
     }; // Size: 0x448
+
+    // Definition for the GetInventoryConfig forward-declaration above.
+    // Walks the verified chain: RogueClient → +0x120 Client → +0x28 World
+    // → +0x138 WorldConfigContainer → +0xD8 InventoryConfig.
+    inline InventoryConfig* GetInventoryConfig()
+    {
+        RogueClient* rc = RogueClient::Singleton();
+        if (!rc) return nullptr;
+        Client* client = rc->m_pClient;
+        if (!client) return nullptr;
+        World* world = client->m_pWorld;
+        if (!world) return nullptr;
+        WorldConfigContainer* cfgContainer = world->m_pConfigContainer;
+        if (!cfgContainer) return nullptr;
+        return cfgContainer->m_pInventoryConfig;
+    }
+
+    // Convenience: get the local player's inventory. Walks World::m_AgentArray[0]
+    // (the first agent is conventionally the local player; m_EntityType==1).
+    inline PlayerInventory* GetLocalPlayerInventory()
+    {
+        RogueClient* rc = RogueClient::Singleton();
+        if (!rc) return nullptr;
+        Client* client = rc->m_pClient;
+        if (!client) return nullptr;
+        World* world = client->m_pWorld;
+        if (!world || world->m_AgentCount <= 0) return nullptr;
+        Agent* player = world->m_AgentArray[0];
+        if (!player) return nullptr;
+        return player->m_pInventory;
+    }
 
     static void ShowMouse(bool arg)
     {

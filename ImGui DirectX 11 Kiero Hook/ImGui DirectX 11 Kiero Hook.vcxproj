@@ -245,9 +245,11 @@
   <ItemGroup>
     <ClCompile Include="CameraManager.cpp" />
     <ClCompile Include="configGlobals.cpp" />
+    <ClCompile Include="AgentInspector.cpp" />
     <ClCompile Include="ConfigManager.cpp" />
     <ClCompile Include="HeadManager.cpp" />
     <ClCompile Include="Hooks.cpp" />
+    <ClCompile Include="ItemDescriptorCache.cpp" />
     <ClCompile Include="imgui\imgui.cpp" />
     <ClCompile Include="imgui\imgui_demo.cpp" />
     <ClCompile Include="imgui\imgui_draw.cpp" />
@@ -290,8 +292,10 @@
     <ClInclude Include="imgui\imstb_rectpack.h" />
     <ClInclude Include="imgui\imstb_textedit.h" />
     <ClInclude Include="imgui\imstb_truetype.h" />
+    <ClInclude Include="AgentInspector.h" />
     <ClInclude Include="includes.h" />
     <ClInclude Include="IniReader.h" />
+    <ClInclude Include="ItemDescriptorCache.h" />
     <ClInclude Include="IniWriter.h" />
     <ClInclude Include="KeybindHelper.h" />
     <ClInclude Include="kiero\kiero.h" />

@@ -1,6 +1,7 @@
 #include "Main.h"
 #include "Snowdrop.h"
 #include "Util.h"
+#include "ItemDescriptorCache.h"
 #include <Windows.h>
 #include <iostream>
 
@@ -116,6 +117,13 @@ void hooks::Init()
     std::cout << "rClientUpdate is Hooked!\n";
     HookVTableFunction(&pUIRootVTable, 0, hUIRootUpdate, oUIRootUpdate);
     std::cout << "uiRootUpdate is Hooked!\n";
+
+    // Install the item-descriptor name-lookup hook. This captures the
+    // InventoryConfig pointer the first time the game queries an item by
+    // name, which unblocks descriptor-based equipping for the skin changer
+    // (see ItemDescriptorCache.h for the full rationale).
+    bool itemCacheOk = ItemDescriptorCache::Init();
+    std::cout << "ItemDescriptorCache hook " << (itemCacheOk ? "installed" : "FAILED") << "\n";
 }
 
 void hooks::DisableHooks()

@@ -2219,19 +2219,19 @@ void SkinnedMeshManager::DrawUI()
     ScanLiveSlots();
 
     // ── Header: cache + player status, one line each ──────────────────
+    // GetCfg() lazy-resolves the InventoryConfig via the singleton chain
+    // (module+0x4688B28 → … → cfg). The display just reflects whether
+    // it's been resolved yet — no manual scan button needed.
     TD::InventoryConfig* cfg = ItemDescriptorCache::GetCfg();
     if (cfg)
     {
         ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f),
-                           "InventoryConfig: captured");
+                           "InventoryConfig: ready");
     }
     else
     {
         ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f),
-                           "InventoryConfig: NOT captured — equip will fail until you scan.");
-        ImGui::SameLine();
-        if (ImGui::Button("Scan now"))
-            ItemDescriptorCache::TryCapture();
+                           "InventoryConfig: resolving… (waiting for item system to load)");
     }
 
     if (!m_scanError.empty())

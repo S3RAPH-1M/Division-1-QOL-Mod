@@ -361,6 +361,13 @@ namespace ItemDescriptorCache
 
     TD::InventoryConfig* GetCfg()
     {
+        // Fast path: already captured.
+        auto* cached = g_pInventoryConfig.load(std::memory_order_acquire);
+        if (cached) return cached;
+        // Lazy capture — five SEH-guarded reads. Cheap enough to attempt
+        // on every call until the item system finishes loading, after
+        // which we permanently hit the fast path above.
+        TryCapture();
         return g_pInventoryConfig.load(std::memory_order_acquire);
     }
 

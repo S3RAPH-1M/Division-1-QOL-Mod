@@ -268,7 +268,6 @@
     <ClCompile Include="kiero\minhook\src\trampoline.c" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="SkinnedMeshManager.cpp" />
-    <ClCompile Include="SkinnedMeshManager.h" />
     <ClCompile Include="Util.cpp" />
     <ClCompile Include="VisualManager.cpp" />
   </ItemGroup>
@@ -297,6 +296,7 @@
     <ClInclude Include="includes.h" />
     <ClInclude Include="IniReader.h" />
     <ClInclude Include="EquipPipelineProbe.h" />
+    <ClInclude Include="SkinnedMeshManager.h" />
     <ClInclude Include="ItemDescriptorCache.h" />
     <ClInclude Include="IniWriter.h" />
     <ClInclude Include="KeybindHelper.h" />

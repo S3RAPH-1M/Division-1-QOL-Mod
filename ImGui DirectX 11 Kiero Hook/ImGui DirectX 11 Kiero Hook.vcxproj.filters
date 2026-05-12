@@ -96,9 +96,9 @@
     <ClCompile Include="SkinnedMeshManager.cpp">
       <Filter>Source Files\Managers</Filter>
     </ClCompile>
-    <ClCompile Include="SkinnedMeshManager.h">
+    <ClInclude Include="SkinnedMeshManager.h">
       <Filter>Header Files</Filter>
-    </ClCompile>
+    </ClInclude>
     <ClCompile Include="HeadManager.cpp">
       <Filter>Source Files\Managers</Filter>
     </ClCompile>

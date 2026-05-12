@@ -20,7 +20,7 @@
 static const SkinnedMeshManager::ModelSwapEntry s_backpackModels_[] =
 {
     { "Ninjabike Messenger Bag",         "rogue/graph objects/gear/ca_cm_b_sv_set01.mgraphobject" },
-    { "Striker's Battlegear",            "rogue/graph objects/gear/CA_CM_B_T7_R_DLC1.mgraphobject" },
+    { "Striker's Battlegear",            "player_back_set_t1_offensive" },
     { "Striker's Battlegear Classified", "rogue/graph objects/gear/ca_cm_b_mm_st.mgraphobject" },
     { "Predator's Mark Classified",      "rogue/graph objects/gear/ca_cm_b_pa_pr.mgraphobject" },
     { "Hunters Faith Classified",        "rogue/graph objects/gear/ca_cm_b_rt_hf.mgraphobject" },
@@ -2127,312 +2127,30 @@ static SlotUIState& UIStateForSlot(int slotIndex)
 
 void SkinnedMeshManager::DrawUI()
 {
-    // Refresh on every draw — cheap, only walks 27 slots.
+    // Refresh slot table every draw — cheap, 27 entries.
     ScanLiveSlots();
 
-    ImGui::TextWrapped("Skin Changer — routes through the engine's full equip pipeline "
-                       "(SetClothingIdList ordering: ListUpdated → sync → ApplyClothingId "
-                       "→ drop old Item* → inject path → ModelLoadTrigger → DirtyFlag). "
-                       "The factory creates the new Item* on the next consume frame, so "
-                       "the swap should be 1:1 with an in-game equip.");
-
-    // Live diagnostic — shows what the singleton chain is actually returning so
-    // we can tell the difference between "engine has no player" and "scan logic
-    // bug" when slots vanish. Reads happen in a POD-only helper (DiagInfo) so
-    // the SEH guard around the agent-type read doesn't conflict with C++ object
-    // unwinding in this function.
+    // ── Header: cache + player status, one line each ──────────────────
+    TD::InventoryConfig* cfg = ItemDescriptorCache::GetCfg();
+    if (cfg)
     {
-        DiagInfo di;
-        GatherDiagInfo(&di);
-        ImGui::TextDisabled(
-            "[diag] agents=%d  player_idx=%d  player=0x%p  type=%d  AM=0x%p",
-            di.agentCount, di.playerIdx, (void*)di.player, di.playerType, (void*)di.am);
+        ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f),
+                           "InventoryConfig: captured");
     }
-
-    // Descriptor-cache probe. The ItemDescriptorCache hook captures the
-    // InventoryConfig pointer the first time the engine queries an item by
-    // name. Once captured, we can resolve any .mitem name to a real engine
-    // descriptor — the foundation for descriptor-based equipping that
-    // triggers the side effects (head/hair swap on cosmetic masks, layered-
-    // clothing coverage on jackets) the path-only swap currently misses.
-    if (ImGui::CollapsingHeader("Item Descriptor Cache (probe)"))
+    else
     {
-        TD::InventoryConfig* cfg = ItemDescriptorCache::GetCfg();
-
-        // Strategy banner: ACG blocks code patching on this build, so we
-        // scan for the InventoryConfig pointer instead of hooking.
-        ImGui::TextDisabled("strategy: heap scan (ACG blocks .text patching)");
-
-        if (cfg)
-        {
-            ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f),
-                               "InventoryConfig: %p  (captured)", (void*)cfg);
-        }
-        else
-        {
-            ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f),
-                               "InventoryConfig: not yet captured");
-            ImGui::TextDisabled("Click Scan to walk process heap and find it.");
-            ImGui::TextDisabled("Takes a few seconds — UI will hang during the scan.");
-        }
-
-        if (ImGui::Button("Scan for InventoryConfig"))
-        {
+        ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f),
+                           "InventoryConfig: NOT captured — equip will fail until you scan.");
+        ImGui::SameLine();
+        if (ImGui::Button("Scan now"))
             ItemDescriptorCache::TryCapture();
-        }
-        ImGui::SameLine();
-        ImGui::TextDisabled("last result: %s", ItemDescriptorCache::GetLastStatusName());
-
-        // Scan stats — repurposed from the old hook diagnostics.
-        ItemDescriptorCache::PageDiag pd = ItemDescriptorCache::GetPageDiag();
-        ImGui::TextDisabled("scan stats: regions=%llu  bytes=%llu  candidates=%llu",
-                            (unsigned long long)pd.allocationBase,
-                            (unsigned long long)pd.state | (((unsigned long long)pd.protect) << 32),
-                            (unsigned long long)pd.type);
-
-        static char s_lookupName[256] = "ch_pm_mask_ge3_03";
-        static std::string s_lookupResult;
-
-        ImGui::PushItemWidth(360.0f);
-        ImGui::InputText("item name##descLookup", s_lookupName, sizeof(s_lookupName));
-        ImGui::PopItemWidth();
-        ImGui::SameLine();
-        if (ImGui::Button("Lookup"))
-        {
-            TD::ItemDescriptor* desc = ItemDescriptorCache::LookupByName(s_lookupName);
-            if (!desc)
-            {
-                s_lookupResult = cfg ? "not found in cache" : "cfg not captured yet";
-            }
-            else
-            {
-                char male[260] = {};
-                char female[260] = {};
-                ItemDescriptorCache::GetMaleVisualGearPath(desc, male, sizeof(male));
-                ItemDescriptorCache::GetFemaleVisualGearPath(desc, female, sizeof(female));
-                int slot = ItemDescriptorCache::GetEquipmentSlot(desc);
-                int gen  = ItemDescriptorCache::GetAttributeGenType(desc);
-                int cat  = ItemDescriptorCache::GetInventoryCategory(desc);
-
-                char buf[1024];
-                std::snprintf(buf, sizeof(buf),
-                              "desc=%p slot=%d genType=%d invCat=%d\n"
-                              "  M: %s\n  F: %s",
-                              (void*)desc, slot, gen, cat,
-                              male[0]   ? male   : "(empty)",
-                              female[0] ? female : "(empty)");
-                s_lookupResult = buf;
-            }
-        }
-        if (!s_lookupResult.empty())
-            ImGui::TextWrapped("%s", s_lookupResult.c_str());
     }
 
-    // ── Equip-pipeline probe ───────────────────────────────────────────────
-    // One-shot empirical test of sub_162DB80 (AppearanceManager_SetEquippedItems)
-    // with a single template Item* in the list. The deep RE pass on
-    // 2026-05-12 produced a hypothesis that templates from InventoryConfig
-    // can't be used directly as list entries (slot-id read at
-    // (entry.first_qword)+0x40 lands in the static vtable's inline string
-    // data). This probe either confirms the AV at the predicted address
-    // OR shows the call returning cleanly. See
-    // .claude/docs/06-inventory-equip-pipeline.md "Structural blocker"
-    // section. Once this question is answered, this whole block can go.
-    if (ImGui::CollapsingHeader("sub_162DB80 Probe (DANGER)"))
-    {
-        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
-                           "WARNING: invokes the engine's equip API with a single");
-        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
-                           "template Item*. May corrupt outfit state or crash.");
-        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
-                           "Save / be safe-zone before clicking. SEH catches in-thread");
-        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
-                           "AVs only; engine corruption may surface a frame later.");
-
-        static char        s_probeName[256] = "ch_pm_mask_ge3_03";
-        static std::string s_probeResult;
-        static bool        s_probeArmed = false;
-
-        ImGui::PushItemWidth(360.0f);
-        ImGui::InputText("item name##probeEquip", s_probeName, sizeof(s_probeName));
-        ImGui::PopItemWidth();
-
-        ImGui::Checkbox("Armed (must check before Run)", &s_probeArmed);
-        ImGui::SameLine();
-        // Older ImGui in this project doesn't have BeginDisabled, so we
-        // gate the button by checking s_probeArmed at click time. Visual
-        // disable comes from a dimmer style when not armed. Cache the
-        // armed state UP FRONT — clicking the button flips s_probeArmed
-        // and would otherwise unbalance the Push/Pop pair.
-        const bool wasArmed = s_probeArmed;
-        if (!wasArmed)
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.3f, 0.3f, 0.3f, 1.0f));
-        if (ImGui::Button("Run probe") && wasArmed)
-        {
-            EquipPipelineProbe::Result r{};
-            EquipPipelineProbe::RunEquipTest(s_probeName, &r);
-            s_probeResult = r.summary;
-            s_probeArmed  = false;     // re-arm after each click — never auto-repeat
-        }
-        if (!wasArmed)
-            ImGui::PopStyleColor();
-
-        if (!s_probeResult.empty())
-            ImGui::TextWrapped("%s", s_probeResult.c_str());
-    }
-
-    // ── Equip-pipeline probe v2 (Pattern A: clone-and-retarget) ────────
-    // The v1 probe above empirically confirmed that templates cannot be
-    // passed directly to sub_162DB80 (AV at the slot-id read). Pattern A
-    // sidesteps that by cloning an existing EquipInstance wrapper from
-    // PlayerInventory and swapping only its +0x00 (inner Item*) to our
-    // target. The engine then sees `(*(QWORD*)entry)+0x40 = template's
-    // real slot id`, which is the read that crashed before. Layout
-    // verified live 2026-05-12 — see 06-inventory-equip-pipeline.md.
-    if (ImGui::CollapsingHeader("Pattern A Probe — Clone + Retarget (DANGER)"))
-    {
-        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f),
-                           "Clones an existing wrapper from PlayerInventory,");
-        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f),
-                           "swaps its inner Item* to your target, calls sub_162DB80.");
-        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f),
-                           "Safer than v1 in theory, but still untested live —");
-        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f),
-                           "may corrupt outfit state or crash. Re-arm before each Run.");
-
-        static char        s_patAName[256] = "ch_pm_mask_ge3_03";
-        static std::string s_patAResult;
-        static bool        s_patAArmed = false;
-
-        ImGui::PushItemWidth(360.0f);
-        ImGui::InputText("item name##probePatA", s_patAName, sizeof(s_patAName));
-        ImGui::PopItemWidth();
-
-        ImGui::Checkbox("Armed (must check before Run)##patAArmed", &s_patAArmed);
-        ImGui::SameLine();
-        const bool patAWasArmed = s_patAArmed;
-        if (!patAWasArmed)
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.3f, 0.3f, 0.3f, 1.0f));
-        if (ImGui::Button("Run PatternA probe") && patAWasArmed)
-        {
-            EquipPipelineProbe::Result r{};
-            EquipPipelineProbe::RunEquipTestPatternA(s_patAName, &r);
-            s_patAResult = r.summary;
-            s_patAArmed  = false;
-        }
-        if (!patAWasArmed)
-            ImGui::PopStyleColor();
-
-        if (!s_patAResult.empty())
-            ImGui::TextWrapped("%s", s_patAResult.c_str());
-    }
-
-    // ── Equip-pipeline probe v3 (Pattern A+: clear-flags-after) ────────
-    // Pattern A succeeded for one frame, then the engine reverted our
-    // wrapper. Hypothesis: the engine's revert tick fires on a transition
-    // of m_DirtyFlag / m_ListUpdated / m_NeedsResync. Pattern A+ clears
-    // all three immediately after the sub_162DB80 call and observes
-    // whether the equip persists past the next frame.
-    //
-    // Two modes:
-    //   - "Clear flags after"  → A+ behavior
-    //   - "Control"            → identical to plain Pattern A
-    // Running both lets us A/B test the hypothesis in the same session.
-    if (ImGui::CollapsingHeader("Pattern A+ Probe — Clear Flags (DANGER)"))
-    {
-        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f),
-                           "After sub_162DB80, writes 0 to m_DirtyFlag,");
-        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f),
-                           "m_ListUpdated, m_NeedsResync to suppress engine revert.");
-        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f),
-                           "WARNING: clearing m_DirtyFlag before consume may also");
-        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f),
-                           "prevent the mesh from rendering at all.");
-
-        static char        s_patAPlusName[256] = "ch_pm_mask_ge3_03";
-        static std::string s_patAPlusResult;
-        static bool        s_patAPlusArmed    = false;
-        static bool        s_patAPlusClearOn  = true;     // default to the new behavior
-
-        ImGui::PushItemWidth(360.0f);
-        ImGui::InputText("item name##probePatAPlus", s_patAPlusName, sizeof(s_patAPlusName));
-        ImGui::PopItemWidth();
-
-        ImGui::Checkbox("Clear flags after call (A+ mode)", &s_patAPlusClearOn);
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip(
-                "ON  = write 0 to m_DirtyFlag / m_ListUpdated / m_NeedsResync\n"
-                "      immediately after sub_162DB80 (the A+ test).\n"
-                "OFF = leave flags as engine set them — identical to plain\n"
-                "      Pattern A (control / sanity check).");
-
-        ImGui::Checkbox("Armed (must check before Run)##patAPlusArmed", &s_patAPlusArmed);
-        ImGui::SameLine();
-        const bool patAPlusWasArmed = s_patAPlusArmed;
-        if (!patAPlusWasArmed)
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.3f, 0.3f, 0.3f, 1.0f));
-        if (ImGui::Button("Run A+ probe") && patAPlusWasArmed)
-        {
-            EquipPipelineProbe::Result r{};
-            EquipPipelineProbe::RunEquipTestPatternAPlus(s_patAPlusName,
-                                                          s_patAPlusClearOn, &r);
-            s_patAPlusResult = r.summary;
-            s_patAPlusArmed  = false;
-        }
-        if (!patAPlusWasArmed)
-            ImGui::PopStyleColor();
-
-        if (!s_patAPlusResult.empty())
-            ImGui::TextWrapped("%s", s_patAPlusResult.c_str());
-
-        // Manual cleanup — forces removal of every tracked Pattern A+
-        // injection's AttachHashmap bucket right now. Useful if you've
-        // injected a mask, UI-equipped a different one, and the orphan
-        // mesh is lingering despite the per-frame maintainer (e.g. if
-        // the engine renamed the bucket key in a way the maintainer
-        // can't match).
-        if (ImGui::Button("Cleanup all Pattern A+ injections"))
-        {
-            std::string err;
-            if (TD::AppearanceManager* am = GetPlayerAppearance(&err))
-                EquipPipelineProbe::ClearAllInjections(am);
-            s_patAPlusResult = "manual cleanup invoked";
-        }
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip(
-                "Walks every tracked Pattern A+ injection and removes its\n"
-                "AttachHashmap bucket via the engine's hashmap_remove\n"
-                "(sub_1650620). Clears all tracking state. Safe to spam.");
-    }
-
-    // Auto re-apply controls. Drift-only: if the slot's current path already
-    // matches what we last applied, this pass leaves it alone — only the
-    // slots the engine has reverted get re-Applied.
-    ImGui::Checkbox("Auto re-apply every 0.1s on drift", &g_autoReapply);
-    if (ImGui::IsItemHovered())
-    {
-        ImGui::SetTooltip(
-            "Polls each slot every ~0.1s. If a slot's path no longer matches\n"
-            "the last mod you applied (e.g. the engine just reverted it after\n"
-            "you equipped or customized something), re-runs Apply for that slot.\n"
-            "Slots that are already matching are left untouched.");
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Forget all"))
-    {
-        for (int i = 0; i < 27; ++i) s_lastApplied[i].clear();
-    }
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Clears the saved last-applied paths so auto re-apply has nothing to restore.");
-
-    // Show error/transient banner if any, but don't bail out — the slot list
-    // below is rendered from m_slots which may be stale-but-valid during the
-    // engine's customization-menu preview window.
     if (!m_scanError.empty())
     {
-        bool isTransient = m_scanError.find("last good scan") != std::string::npos;
-        ImVec4 col = isTransient ? ImVec4(1.0f, 0.85f, 0.2f, 1.0f)
-                                 : ImVec4(1.0f, 0.40f, 0.40f, 1.0f);
+        bool transient = m_scanError.find("last good scan") != std::string::npos;
+        ImVec4 col = transient ? ImVec4(1.0f, 0.85f, 0.2f, 1.0f)
+                               : ImVec4(1.0f, 0.40f, 0.40f, 1.0f);
         ImGui::PushStyleColor(ImGuiCol_Text, col);
         ImGui::Text("%s", m_scanError.c_str());
         ImGui::PopStyleColor();
@@ -2440,75 +2158,38 @@ void SkinnedMeshManager::DrawUI()
 
     if (m_slots.empty())
     {
-        ImGui::TextDisabled("(no populated slots — load into the world first)");
+        ImGui::TextDisabled("(no populated slots — load a character into the world first)");
         return;
     }
 
     ImGui::Separator();
 
+    // ── Per-slot rows: dropdown + Apply ───────────────────────────────
+    // Only known body-part slots (0..12) get a row. Higher indices in
+    // m_Clothes are weapon/ammo/consumable slots the equip pipeline
+    // doesn't touch.
     for (const auto& ls : m_slots)
     {
+        const bool isKnownSlot = (ls.index >= 0 && ls.index < kKnownSlotCount);
+        if (!isKnownSlot)
+            continue;
+
         ImGui::PushID(ls.index);
 
-        // A slot is "writable" if either:
-        //   • It already has a heap allocation (canMutate — direct in-place
-        //     write or engine reassign).
-        //   • It's an Unknown slot 13..26 (no body-part binding, so we don't
-        //     surface the Apply UI even though the engine *could* assign a
-        //     path there). Cosmetic for now.
-        //   • It's a known slot 0..12 with an inline-empty SnowdropString —
-        //     the engine's assign helper (sub_116830) converts inline→heap
-        //     using the engine's own allocator, so first-time writes into
-        //     an empty body-part slot work.
-        const bool isKnownSlot = (ls.index >= 0 && ls.index < kKnownSlotCount);
-        const bool writable    = ls.canMutate || isKnownSlot;
-
-        // Header: "Slot 7 — Jacket (L3)"
         ImGui::TextColored(ImVec4(0.6f, 0.85f, 1.0f, 1.0f),
                            "Slot %d — %s", ls.index, GearTypeName(ls.type));
-        ImGui::SameLine();
-        const char* mutTag = ls.canMutate ? "mutable"
-                                          : (writable ? "inline-empty (engine-assign)"
-                                                      : "INLINE/locked");
-        ImGui::TextDisabled("[cap %u, %s]", (unsigned)ls.capacity, mutTag);
 
-        if (ls.currentPath.empty())
-        {
-            if (ls.canMutate)
-                ImGui::TextDisabled("Current: (engine cleared — heap allocation reserved, can still write)");
-            else if (writable)
-                ImGui::TextDisabled("Current: (empty — first write will allocate via engine's assign)");
-            else
-                ImGui::TextDisabled("Current: (empty — slot unused on this character)");
-        }
-        else
-        {
-            ImGui::TextWrapped("Current: %s", ls.currentPath.c_str());
-        }
+        if (!ls.currentPath.empty())
+            ImGui::TextDisabled("Current: %s", ls.currentPath.c_str());
 
-        if (!writable)
-        {
-            ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f),
-                               "  cannot mutate (unknown slot — no body-part binding)");
-            ImGui::Separator();
-            ImGui::PopID();
-            continue;
-        }
+        int          modelCount = 0;
+        const auto*  models     = GetModelList(ls.type, modelCount);
+        SlotUIState& ui         = UIStateForSlot(ls.index);
 
-        // (Descriptor-side-effects warning removed 2026-05-12 — the Apply
-        // button now routes through ApplyEquipByName which drives the full
-        // engine equip pipeline. Cosmetic mask head/hair swap and L1/L2/L3
-        // covered-mesh selection both fire correctly.)
-
-        int        modelCount = 0;
-        const auto* models = GetModelList(ls.type, modelCount);
-
-        SlotUIState& ui = UIStateForSlot(ls.index);
-
-        // Dropdown of curated models for this gear type
+        // Curated-models dropdown.
         const char* preview = (ui.pickedIndex >= 0 && ui.pickedIndex < modelCount)
                               ? models[ui.pickedIndex].displayName
-                              : "(pick a model or type a custom path)";
+                              : "(pick a model)";
         ImGui::PushItemWidth(360.0f);
         if (ImGui::BeginCombo("##picker", preview))
         {
@@ -2523,86 +2204,38 @@ void SkinnedMeshManager::DrawUI()
         }
         ImGui::PopItemWidth();
 
-        // Free-text custom path (overrides dropdown when non-empty)
-        ImGui::PushItemWidth(360.0f);
-        ImGui::InputText("custom##path", ui.custom, sizeof(ui.custom));
-        ImGui::PopItemWidth();
-
+        ImGui::SameLine();
         if (ImGui::Button("Apply"))
         {
-            const char* target = nullptr;
-            if (ui.custom[0] != '\0')
-                target = ui.custom;
-            else if (ui.pickedIndex >= 0 && ui.pickedIndex < modelCount)
-                target = models[ui.pickedIndex].assetPath;
-
-            if (!target || !*target)
+            if (ui.pickedIndex < 0 || ui.pickedIndex >= modelCount)
             {
                 ui.lastOk = false;
-                ui.lastResult = "no target selected";
+                ui.lastResult = "pick a model first";
             }
             else
             {
-                // ── Try descriptor-bound equip (Pattern A+) first ─────────
-                // Derive the .mitem base name from the asset path. The .mitem
-                // for `rogue/graph objects/gear/ca_cm_b_uw_dar.mgraphobject`
-                // is just `ca_cm_b_uw_dar` (basename minus the extension).
-                // Holds for every catalogued vanilla item we've checked.
-                // For paths the cache doesn't know (custom paths, modded
-                // assets), we fall back to the legacy path-only flow.
+                // Derive .mitem name from the asset path's basename
+                // (e.g. .../ca_cm_b_uw_dar.mgraphobject → ca_cm_b_uw_dar).
+                // Holds for every vanilla item we've sampled.
+                const char* target = models[ui.pickedIndex].assetPath;
                 char mitemName[160] = {};
+                const char* slash = std::strrchr(target, '/');
+                const char* base  = slash ? slash + 1 : target;
+                std::size_t n = 0;
+                while (base[n] && base[n] != '.' && n + 1 < sizeof(mitemName))
                 {
-                    const char* slash = std::strrchr(target, '/');
-                    const char* base  = slash ? slash + 1 : target;
-                    std::size_t i = 0;
-                    while (base[i] && base[i] != '.' && i + 1 < sizeof(mitemName))
-                    {
-                        mitemName[i] = base[i];
-                        ++i;
-                    }
-                    mitemName[i] = '\0';
+                    mitemName[n] = base[n];
+                    ++n;
                 }
+                mitemName[n] = '\0';
 
                 std::string err;
-                bool ok = false;
-                bool triedDescriptor = false;
-
-                // Only attempt descriptor equip if the cache is captured —
-                // otherwise LookupByName would return nullptr and we'd
-                // fall back unnecessarily.
-                if (mitemName[0] && ItemDescriptorCache::GetCfg() &&
-                    ItemDescriptorCache::LookupByName(mitemName))
-                {
-                    triedDescriptor = true;
-                    ok = ApplyEquipByName(ls.index, mitemName, &err);
-                }
-
-                // Fall back to legacy path-only flow if the item isn't in
-                // InventoryConfig OR if the descriptor call AV'd. The path
-                // flow still lacks descriptor side effects, but it's the
-                // best we can do for items the cache doesn't know.
-                if (!ok)
-                {
-                    std::string err2;
-                    bool legacyOk = ApplyDirectSwap(ls.index, target, &err2);
-                    if (legacyOk)
-                    {
-                        ok  = true;
-                        err = triedDescriptor
-                            ? (std::string("[descriptor failed, used legacy] ") + err2)
-                            : (std::string("[legacy path] ") + err2);
-                    }
-                    else if (err.empty())
-                    {
-                        err = err2;
-                    }
-                }
+                bool ok = ApplyEquipByName(ls.index, mitemName, &err);
 
                 ui.lastOk = ok;
                 ui.lastResult = ok
-                    ? (err.empty() ? (std::string("ok — wrote: ") + target)
-                                   : (err + " — " + target))
-                    : (std::string("failed: ") + err);
+                    ? (std::string("equipped: ") + models[ui.pickedIndex].displayName)
+                    : (std::string("failed (") + mitemName + "): " + err);
             }
         }
 

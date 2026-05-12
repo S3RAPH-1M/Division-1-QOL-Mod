@@ -451,25 +451,80 @@ namespace EquipPipelineProbe
     };
     static OutfitSnapshot s_originalOutfit{};
 
-    bool TakeOriginalSnapshotGuarded(TD::AppearanceManager* am)
+    // Reason codes for snapshot failure — kept POD so callers can use
+    // them inside SEH-guarded code paths.
+    enum SnapshotReason
     {
-        if (s_originalOutfit.captured) return true;
-        if (!am) return false;
+        SNAP_OK              = 0,
+        SNAP_NO_AM           = 1,
+        SNAP_NO_INV          = 2,
+        SNAP_NO_WRAPPERS     = 3,
+        SNAP_READ_FAULTED    = 4,
+    };
+    static int s_lastSnapReason = SNAP_OK;
+
+    // Snapshot the player's original outfit by scanning PlayerInventory
+    // for every equipped-item wrapper. m_AssetRecords on the
+    // AppearanceManager is NOT the right source: on a freshly spawned
+    // character it's empty (count == 0, ptr == null) because the renderer
+    // works off m_Clothes[].m_Path + m_AttachHashmap directly. The vector
+    // only fills in once the engine processes a SetEquippedItems call.
+    //
+    // PlayerInventory holders, in contrast, are populated at character
+    // load with stable wrapper pointers (verified live: same range as
+    // FindAnyWrapperGuarded uses for donor selection in Pattern A+).
+    // Snapshotting from there gives us the wrapper set the engine WOULD
+    // have populated m_AssetRecords with.
+    int TakeOriginalSnapshotGuarded(TD::AppearanceManager* am)
+    {
+        if (s_originalOutfit.captured) return SNAP_OK;
+        if (!am) return SNAP_NO_AM;
+        void* inv = GetPlayerInventory();
+        if (!inv) return SNAP_NO_INV;
+
+        int reason = SNAP_OK;
+        int n = 0;
         __try
         {
-            void** arr = am->m_AssetRecords_Ptr;
-            int    n   = am->m_AssetRecords_Count;
-            if (!arr || n <= 0) return false;
+            auto* base = reinterpret_cast<std::uint8_t*>(inv);
             int cap = (int)(sizeof(s_originalOutfit.wrappers) /
                             sizeof(s_originalOutfit.wrappers[0]));
-            if (n > cap) n = cap;
-            for (int i = 0; i < n; ++i)
-                s_originalOutfit.wrappers[i] = arr[i];
-            s_originalOutfit.count    = n;
-            s_originalOutfit.captured = true;
-            return true;
+            // Walk +0x80..+0x200 PlayerInventory holders. Each holder's
+            // wrapper sits at +0x50. PlayerInventory holds BOTH clothing
+            // AND non-clothing equipment (weapons, ammo, sidearm, etc.);
+            // sub_162DB80 will AV if we pass it a non-clothing wrapper
+            // (Character_ApplyClothingId reads `40*slot + 81` off the AM,
+            // which goes out of bounds when slot > 26 → mutex deadlock,
+            // frozen game). Filter by reading the inner item's slot id at
+            // wrapper.first_qword + 0x40 and only keeping known body-part
+            // slots (0..kKnownSlotCount-1 = 0..12).
+            const int kClothingMaxSlot = 13;
+            for (int off = 0x80; off < 0x200 && n < cap; off += 8)
+            {
+                void* holder = *(void**)(base + off);
+                if (!LooksLikeHeapPtr(holder)) continue;
+                void* wrapper = *(void**)(reinterpret_cast<std::uint8_t*>(holder) + 0x50);
+                if (!LooksLikeHeapPtr(wrapper)) continue;
+
+                // wrapper.first_qword (= inner Item*) must be valid heap;
+                // its +0x40 must be a clothing slot id [0..12]. Anything
+                // else (weapons, consumables) is filtered out.
+                void* inner = *(void**)wrapper;
+                if (!LooksLikeHeapPtr(inner)) continue;
+                int slotId = *(int*)(reinterpret_cast<std::uint8_t*>(inner) + 0x40);
+                if (slotId < 0 || slotId >= kClothingMaxSlot) continue;
+
+                s_originalOutfit.wrappers[n++] = wrapper;
+            }
         }
-        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+        __except (EXCEPTION_EXECUTE_HANDLER) { reason = SNAP_READ_FAULTED; }
+
+        if (reason != SNAP_OK) return reason;
+        if (n == 0)            return SNAP_NO_WRAPPERS;
+
+        s_originalOutfit.count    = n;
+        s_originalOutfit.captured = true;
+        return SNAP_OK;
     }
 
     // Engine's AttachHashmap remove (sub_1650620). Cleanly drops the
@@ -1039,19 +1094,35 @@ namespace EquipPipelineProbe
 
     bool HasOriginalSnapshot() { return s_originalOutfit.captured; }
 
-    // Force a fresh snapshot of the current m_AssetRecords. Used by the
-    // "Snapshot" UI button so the user can pin a known-good outfit
-    // (e.g. after the engine has rebuilt records for a new character).
-    // Returns the wrapper count captured; 0 if the AM is unreachable or
-    // m_AssetRecords is empty.
+    // Force a fresh snapshot of the current m_AssetRecords. Returns the
+    // wrapper count captured; 0 on failure. Call LastSnapshotReason()
+    // afterwards for a human-readable diagnostic.
     int TakeOriginalSnapshotNow()
     {
         s_originalOutfit.captured = false;
         s_originalOutfit.count    = 0;
         auto* am = GetPlayerAppearance();
-        if (!am) return 0;
-        if (!TakeOriginalSnapshotGuarded(am)) return 0;
-        return s_originalOutfit.count;
+        if (!am)
+        {
+            s_lastSnapReason = SNAP_NO_AM;
+            return 0;
+        }
+        int reason = TakeOriginalSnapshotGuarded(am);
+        s_lastSnapReason = reason;
+        return (reason == SNAP_OK) ? s_originalOutfit.count : 0;
+    }
+
+    const char* LastSnapshotReason()
+    {
+        switch (s_lastSnapReason)
+        {
+            case SNAP_OK:           return "ok";
+            case SNAP_NO_AM:        return "no player AppearanceManager (not in-world?)";
+            case SNAP_NO_INV:       return "no PlayerInventory (chain unresolved)";
+            case SNAP_NO_WRAPPERS:  return "no wrappers found in PlayerInventory (early load?)";
+            case SNAP_READ_FAULTED: return "memory read AV'd (offset drift?)";
+            default:                return "unknown";
+        }
     }
 
     // Force-clean every tracked injection right now. Used by the manual

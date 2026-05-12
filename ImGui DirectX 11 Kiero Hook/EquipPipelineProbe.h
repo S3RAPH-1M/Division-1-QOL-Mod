@@ -154,8 +154,10 @@ namespace EquipPipelineProbe
     // first RunEquipBatch call takes one automatically; this lets the
     // user re-pin if they want to overwrite the auto-capture (e.g. after
     // a character reload that rebuilt the wrapper set). Returns the
-    // wrapper count captured, or 0 on failure.
+    // wrapper count captured, or 0 on failure — in which case
+    // LastSnapshotReason() returns a human-readable diagnostic.
     int  TakeOriginalSnapshotNow();
+    const char* LastSnapshotReason();
 
     // Batch-apply many slots in one engine call. For each (slot, name)
     // pair: resolve the .mitem name via ItemDescriptorCache, stage a

@@ -2328,10 +2328,12 @@ void SkinnedMeshManager::DrawUI()
     {
         int n = EquipPipelineProbe::TakeOriginalSnapshotNow();
         s_batchOk = (n > 0);
-        char buf[160];
-        std::snprintf(buf, sizeof(buf),
-                      n > 0 ? "snapshot captured (%d wrappers)"
-                            : "snapshot failed (no AppearanceManager?)", n);
+        char buf[256];
+        if (n > 0)
+            std::snprintf(buf, sizeof(buf), "snapshot captured (%d wrappers)", n);
+        else
+            std::snprintf(buf, sizeof(buf), "snapshot failed: %s",
+                          EquipPipelineProbe::LastSnapshotReason());
         s_batchResult = buf;
     }
 

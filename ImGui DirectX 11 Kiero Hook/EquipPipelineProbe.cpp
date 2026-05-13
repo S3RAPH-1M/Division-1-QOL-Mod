@@ -247,6 +247,34 @@ namespace
         __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
     }
 
+    // Copy the two lookup-key DWORDs from a target Item* into a cloned
+    // wrapper buffer. These keys (category id at item+0x2C, variant
+    // index at item+0x3C) are what AppearanceWrapper_init (engine RVA
+    // 0xE38260) writes into wrapper+0x130 and +0x13C respectively
+    // when a wrapper is constructed naturally for an item. Pattern A+
+    // clones a donor wrapper, so without this step both keys are the
+    // donor's — Owner_LookupAssetHandle then returns the donor's
+    // material record (or the shared fallback bucket at WCC+0x360+80),
+    // which is what gives every color-overlay gear piece the same
+    // cream-white render. Copying these two DWORDs makes the lookup
+    // index the target item's own row + variant. Optional companion
+    // copies (+0x134, +0x140) mirror the rest of init for safety.
+    bool RetargetWrapperKeysGuarded(void* clone, const void* itemTemplate)
+    {
+        if (!clone || !itemTemplate) return false;
+        __try
+        {
+            auto* c = (std::uint8_t*)clone;
+            auto* t = (const std::uint8_t*)itemTemplate;
+            *(std::uint32_t*)(c + 0x130) = *(const std::uint32_t*)(t + 0x2C);
+            *(std::uint32_t*)(c + 0x13C) = *(const std::uint32_t*)(t + 0x3C);
+            *(std::uint32_t*)(c + 0x134) = *(const std::uint32_t*)(t + 0x34);
+            *(std::uint32_t*)(c + 0x140) = *(const std::uint32_t*)(t + 0x1B0);
+            return true;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
+
     // POD reader for additional wrapper fields we want to log. Same shape
     // as TemplateProbe but for the wrapper / its inner item.
     struct WrapperProbe
@@ -685,6 +713,14 @@ namespace EquipPipelineProbe
         //    template+0x40 = real slot id (verified earlier in step 2).
         *(void**)s_clone = out->itemPtr;
 
+        // 7b. Retarget the Owner_LookupAssetHandle keys (category id at
+        //     +0x130, variant index at +0x13C, plus +0x134/+0x140) so
+        //     the engine's per-frame material lookup indexes the
+        //     target item's row in WCC+0x360 instead of the donor's.
+        //     Without this, color-overlay gear renders as the shared
+        //     fallback bucket (cream-white).
+        RetargetWrapperKeysGuarded(s_clone, out->itemPtr);
+
         // 8. Build the items list. sub_162DB80 is a full-list replace —
         //    any active wrapper NOT in the list gets evicted from
         //    m_AssetRecords, which makes that slot revert to whatever
@@ -959,6 +995,14 @@ namespace EquipPipelineProbe
         // Retarget +0x00 to our chosen template. Engine's slot id read
         // (*(QWORD*)entry)+0x40 now lands on the template's real slot.
         *(void**)s_clones[slotIdx] = itemTemplate;
+
+        // Retarget the Owner_LookupAssetHandle keys (category +0x130,
+        // variant +0x13C, plus the two companion DWORDs at +0x134 and
+        // +0x140) so the engine's per-frame material lookup indexes
+        // the target item's row in WCC+0x360 instead of the donor's.
+        // Without this the lookup falls through to the shared dummy
+        // bucket and color-overlay gear renders as cream-white.
+        RetargetWrapperKeysGuarded(s_clones[slotIdx], itemTemplate);
 
         s_inj[slotIdx].active  = true;
         s_inj[slotIdx].wrapper = s_clones[slotIdx];

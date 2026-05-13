@@ -2226,6 +2226,211 @@ static SlotUIState& UIStateForSlot(int slotIndex)
     return s_states[idx];
 }
 
+// ─── Appearance save slots ───────────────────────────────────────────────────
+// Each save is one plain-text file under ".\\ssh_qol\\<name>.skin" relative
+// to the game's working dir (same convention as ssh_QOL_Config.ini). Format:
+//
+//   # comment lines start with '#'
+//   version 1
+//   [N]
+//   asset=<.mitem base name>      (empty = "unchanged" pick)
+//   variant=<int, -1 = auto>
+//   colors=<16 floats space-separated>   (omitted if slot isn't equipped)
+//
+// Only the Skin Changer's own UI state is persisted: per-slot dropdown pick,
+// per-slot variant override, and the per-slot live ColorOverlay (the 4 RGBA
+// values in the "Colors" popup). EquipPipelineProbe's original-outfit
+// snapshot is intentionally NOT saved.
+
+namespace {
+
+constexpr const char* kSaveDirRel = "ssh_qol";
+constexpr const char* kSaveExt    = ".skin";
+
+void EnsureSaveDir()
+{
+    CreateDirectoryA(kSaveDirRel, nullptr);   // returns 0 + ALREADY_EXISTS is fine
+}
+
+std::string SavePathFor(const char* name)
+{
+    std::string p = kSaveDirRel;
+    p += '\\';
+    p += name;
+    p += kSaveExt;
+    return p;
+}
+
+void RTrim(std::string& s)
+{
+    while (!s.empty() &&
+           (s.back() == '\r' || s.back() == '\n' ||
+            s.back() == ' '  || s.back() == '\t'))
+        s.pop_back();
+}
+
+// Sanitize an in-place save name so Windows accepts it as a file name.
+void SanitizeSaveName(char* name)
+{
+    for (char* p = name; *p; ++p)
+    {
+        switch (*p)
+        {
+        case '\\': case '/': case ':': case '*': case '?':
+        case '"':  case '<': case '>': case '|':
+            *p = '_';
+            break;
+        default: break;
+        }
+    }
+}
+
+int FindIndexForAsset(SkinnedMeshManager::GearType gt, const char* asset)
+{
+    if (!asset || !*asset) return -1;
+    int mc = 0;
+    const auto* models = GetModelList(gt, mc);
+    if (!models) return -1;
+    for (int i = 0; i < mc; ++i)
+        if (std::strcmp(models[i].assetPath, asset) == 0) return i;
+    return -1;
+}
+
+bool WriteSkinSave(const char* name, std::string* errOut)
+{
+    EnsureSaveDir();
+    std::string path = SavePathFor(name);
+    FILE* fp = nullptr;
+    fopen_s(&fp, path.c_str(), "wb");
+    if (!fp) { if (errOut) *errOut = "open for write failed: " + path; return false; }
+
+    std::fprintf(fp, "# ssh's QOL Tools - Skin Changer Save\n");
+    std::fprintf(fp, "version 1\n");
+
+    for (int slot = 0; slot < SkinnedMeshManager::kKnownSlotCount; ++slot)
+    {
+        SlotUIState& ui = UIStateForSlot(slot);
+        auto gt = SkinnedMeshManager::SlotGearType(slot);
+
+        int mc = 0;
+        const auto* models = GetModelList(gt, mc);
+        const char* asset = "";
+        if (models && ui.pickedIndex >= 0 && ui.pickedIndex < mc)
+            asset = models[ui.pickedIndex].assetPath;
+
+        int variant = EquipPipelineProbe::GetVariantOverride(slot);
+
+        std::fprintf(fp, "[%d]\n", slot);
+        std::fprintf(fp, "asset=%s\n", asset);
+        std::fprintf(fp, "variant=%d\n", variant);
+
+        float colors[16];
+        if (EquipPipelineProbe::ReadLiveColors(slot, colors))
+        {
+            std::fprintf(fp, "colors=");
+            for (int i = 0; i < 16; ++i)
+                std::fprintf(fp, "%s%.6f", i == 0 ? "" : " ", colors[i]);
+            std::fprintf(fp, "\n");
+        }
+    }
+
+    std::fclose(fp);
+    return true;
+}
+
+bool ReadSkinSave(const char* name, std::string* errOut)
+{
+    std::string path = SavePathFor(name);
+    FILE* fp = nullptr;
+    fopen_s(&fp, path.c_str(), "rb");
+    if (!fp) { if (errOut) *errOut = "open for read failed: " + path; return false; }
+
+    char buf[1024];
+    int curSlot = -1;
+    while (std::fgets(buf, sizeof(buf), fp))
+    {
+        std::string line(buf);
+        RTrim(line);
+        if (line.empty() || line[0] == '#') continue;
+
+        if (line.front() == '[' && line.back() == ']')
+        {
+            int s = std::atoi(line.c_str() + 1);
+            curSlot = (s >= 0 && s < SkinnedMeshManager::kKnownSlotCount) ? s : -1;
+            continue;
+        }
+        if (curSlot < 0) continue;
+
+        auto eq = line.find('=');
+        if (eq == std::string::npos) continue;
+        std::string key = line.substr(0, eq);
+        std::string val = line.substr(eq + 1);
+
+        SlotUIState& ui = UIStateForSlot(curSlot);
+        if (key == "asset")
+        {
+            auto gt = SkinnedMeshManager::SlotGearType(curSlot);
+            ui.pickedIndex = FindIndexForAsset(gt, val.c_str());
+        }
+        else if (key == "variant")
+        {
+            int v = std::atoi(val.c_str());
+            if (v < -1) v = -1;
+            ui.variantUI = v;
+            EquipPipelineProbe::SetVariantOverride(curSlot, v);
+        }
+        else if (key == "colors")
+        {
+            float c[16] = {};
+            int n = 0;
+            const char* p = val.c_str();
+            char* end = nullptr;
+            while (n < 16 && *p)
+            {
+                float f = std::strtof(p, &end);
+                if (end == p) break;
+                c[n++] = f;
+                p = end;
+                while (*p == ' ' || *p == '\t') ++p;
+            }
+            // WriteLiveColors silently no-ops on slots that aren't equipped
+            // yet — that's fine; the user can re-Load after Apply All Selected
+            // brings the slots online.
+            if (n == 16)
+                EquipPipelineProbe::WriteLiveColors(curSlot, c);
+        }
+    }
+
+    std::fclose(fp);
+    return true;
+}
+
+void ListSkinSaves(std::vector<std::string>& out)
+{
+    out.clear();
+    EnsureSaveDir();
+    std::string pattern = std::string(kSaveDirRel) + "\\*" + kSaveExt;
+    WIN32_FIND_DATAA fd{};
+    HANDLE h = FindFirstFileA(pattern.c_str(), &fd);
+    if (h == INVALID_HANDLE_VALUE) return;
+    do {
+        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
+        std::string fname = fd.cFileName;
+        auto dot = fname.rfind('.');
+        if (dot != std::string::npos) fname.resize(dot);
+        if (!fname.empty()) out.push_back(fname);
+    } while (FindNextFileA(h, &fd));
+    FindClose(h);
+}
+
+bool DeleteSkinSave(const char* name)
+{
+    std::string p = SavePathFor(name);
+    return DeleteFileA(p.c_str()) != 0;
+}
+
+} // anonymous namespace
+
 void SkinnedMeshManager::DrawUI()
 {
     // Refresh slot table every draw — cheap, 27 entries.
@@ -2255,6 +2460,89 @@ void SkinnedMeshManager::DrawUI()
         ImGui::PushStyleColor(ImGuiCol_Text, col);
         ImGui::Text("%s", m_scanError.c_str());
         ImGui::PopStyleColor();
+    }
+
+    // ── Appearance Save Slots ────────────────────────────────────────
+    // Persists only the Skin Changer's own UI state (per-slot picks +
+    // variant overrides + live ColorOverlay values) to .\ssh_qol\<name>.skin
+    // — not the underlying character, and not the equip-pipeline snapshot.
+    {
+        static char  s_saveName[64]              = "default";
+        static char  s_loadSelected[64]          = {};
+        static std::vector<std::string> s_saveList;
+        static bool  s_saveListReady             = false;
+        static std::string s_saveResult;
+        static bool  s_saveOk                    = false;
+
+        if (!s_saveListReady) { ListSkinSaves(s_saveList); s_saveListReady = true; }
+
+        if (ImGui::CollapsingHeader("Appearance Save Slots",
+                                    ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::PushItemWidth(220.0f);
+            ImGui::InputText("Save name", s_saveName, sizeof(s_saveName));
+            ImGui::PopItemWidth();
+            ImGui::SameLine();
+            if (ImGui::Button("Save") && s_saveName[0])
+            {
+                SanitizeSaveName(s_saveName);
+                std::string err;
+                s_saveOk = WriteSkinSave(s_saveName, &err);
+                s_saveResult = s_saveOk
+                    ? std::string("saved: ") + s_saveName + kSaveExt
+                    : err;
+                ListSkinSaves(s_saveList);
+            }
+
+            ImGui::PushItemWidth(220.0f);
+            const char* combo_preview = s_loadSelected[0] ? s_loadSelected
+                                                           : "(pick a save)";
+            if (ImGui::BeginCombo("Saved slot", combo_preview))
+            {
+                if (s_saveList.empty())
+                    ImGui::TextDisabled("(no saves yet)");
+                for (const auto& n : s_saveList)
+                {
+                    bool selected = (std::strcmp(s_loadSelected, n.c_str()) == 0);
+                    if (ImGui::Selectable(n.c_str(), selected))
+                        std::snprintf(s_loadSelected, sizeof(s_loadSelected),
+                                      "%s", n.c_str());
+                    if (selected) ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            ImGui::PopItemWidth();
+            ImGui::SameLine();
+            if (ImGui::Button("Load") && s_loadSelected[0])
+            {
+                std::string err;
+                s_saveOk = ReadSkinSave(s_loadSelected, &err);
+                s_saveResult = s_saveOk
+                    ? std::string("loaded: ") + s_loadSelected
+                      + " — click 'Apply All Selected' to equip, then Load again to apply colors"
+                    : err;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Delete") && s_loadSelected[0])
+            {
+                s_saveOk = DeleteSkinSave(s_loadSelected);
+                s_saveResult = s_saveOk
+                    ? std::string("deleted: ") + s_loadSelected
+                    : std::string("delete failed (file in use or missing)");
+                if (s_saveOk) s_loadSelected[0] = 0;
+                ListSkinSaves(s_saveList);
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Refresh"))
+                ListSkinSaves(s_saveList);
+
+            if (!s_saveResult.empty())
+            {
+                ImVec4 col = s_saveOk ? ImVec4(0.5f, 1.0f, 0.5f, 1.0f)
+                                      : ImVec4(1.0f, 0.5f, 0.5f, 1.0f);
+                ImGui::TextColored(col, "%s", s_saveResult.c_str());
+            }
+        }
     }
 
     if (m_slots.empty())

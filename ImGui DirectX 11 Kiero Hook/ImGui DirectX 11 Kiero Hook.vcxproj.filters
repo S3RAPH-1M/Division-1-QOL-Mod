@@ -75,6 +75,9 @@
     <ClCompile Include="CameraManager.cpp">
       <Filter>Source Files\Managers</Filter>
     </ClCompile>
+    <ClCompile Include="CamoManager.cpp">
+      <Filter>Source Files\Managers</Filter>
+    </ClCompile>
     <ClCompile Include="VisualManager.cpp">
       <Filter>Source Files\Managers</Filter>
     </ClCompile>
@@ -197,6 +200,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="CameraManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CamoManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Snowdrop.h">

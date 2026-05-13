@@ -5,6 +5,7 @@
 #include "VisualManager.h"
 #include "ConfigManager.h"
 #include "SkinnedMeshManager.h"
+#include "CamoManager.h"
 #include "HeadManager.h"
 #include "AgentInspector.h"
 
@@ -20,6 +21,7 @@ public:
 	CameraManager* GetCameraManager() { return m_pCameraManager.get(); }
 	VisualManager* GetVisualManager() { return m_pVisualManager.get(); }
 	SkinnedMeshManager* GetSkinnedMeshManager() { return m_pSkinnedMeshManager.get(); }
+	CamoManager* GetCamoManager() { return m_pCamoManager.get(); }
 	ConfigManager* GetConfigManager() { return m_pConfigManager.get(); }
 	HeadManager* GetHeadManager() { return m_pHeadManager.get(); }
 	AgentInspector* GetAgentInspector() { return m_pAgentInspector.get(); }
@@ -27,6 +29,7 @@ public:
 	std::unique_ptr<CameraManager> m_pCameraManager;
 	std::unique_ptr<VisualManager> m_pVisualManager;
 	std::unique_ptr<SkinnedMeshManager> m_pSkinnedMeshManager;
+	std::unique_ptr<CamoManager> m_pCamoManager;
 	std::unique_ptr<ConfigManager> m_pConfigManager;
 	std::unique_ptr<HeadManager> m_pHeadManager;
 	std::unique_ptr<AgentInspector> m_pAgentInspector;

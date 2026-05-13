@@ -124,6 +124,7 @@ void Update(void) {
 	g_mainHandle->GetVisualManager()->Update();
 	g_mainHandle->GetHeadManager()->Update();
 	g_mainHandle->GetSkinnedMeshManager()->Update();
+	g_mainHandle->GetCamoManager()->Update();
 }
 
 
@@ -328,6 +329,10 @@ HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 		{
 			tab = 5;
 		}
+		if (ImGui::Button(xor ("Camo"), ImVec2(GUI_COLUMN_OFFSET - 10, 20)))
+		{
+			tab = 6;
+		}
 		if (ImGui::Button(xor ("Settings"), ImVec2(GUI_COLUMN_OFFSET - 10, 20)))
 		{
 			tab = 999;
@@ -356,6 +361,9 @@ HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 					break;
 				case 5:
 					g_mainHandle->GetAgentInspector()->DrawUI();
+					break;
+				case 6:
+					g_mainHandle->GetCamoManager()->DrawUI();
 					break;
 				case 999:
 					g_mainHandle->GetConfigManager()->DrawUI();
@@ -421,6 +429,9 @@ void Main::Initialize()
 
 	m_pSkinnedMeshManager = std::make_unique<SkinnedMeshManager>();
 	std::cout << "Created the m_pSkinnedMeshManager!\n";
+
+	m_pCamoManager = std::make_unique<CamoManager>();
+	std::cout << "Created the m_pCamoManager!\n";
 
 	m_pConfigManager = std::make_unique<ConfigManager>();
 	std::cout << "Created the m_pConfigManager!\n";

@@ -244,6 +244,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CameraManager.cpp" />
+    <ClCompile Include="CamoManager.cpp" />
     <ClCompile Include="configGlobals.cpp" />
     <ClCompile Include="AgentInspector.cpp" />
     <ClCompile Include="ConfigManager.cpp" />
@@ -280,6 +281,7 @@
   <ItemGroup>
     <ClInclude Include="attributes.h" />
     <ClInclude Include="CameraManager.h" />
+    <ClInclude Include="CamoManager.h" />
     <ClInclude Include="configGlobals.h" />
     <ClInclude Include="ConfigManager.h" />
     <ClInclude Include="global.h" />

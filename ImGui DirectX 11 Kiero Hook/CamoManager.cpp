@@ -1,4 +1,4 @@
-#include "CamoManager.h"
+﻿#include "CamoManager.h"
 #include "Snowdrop.h"
 #include "Main.h"
 #include "ItemDescriptorCache.h"
@@ -20,7 +20,7 @@ namespace
     // The "base" texture set on the player at character load is the arm
     // patch (CA_SHD_Armpatch_D/N/M.dds). Anything else dropped into
     // m_PathStrings1[3..5] will repaint the same surface on the next
-    // consume pass — which is the engine-side primitive for an outfit
+    // consume pass â€” which is the engine-side primitive for an outfit
     // recolor. These presets re-use stock Division .dds assets the engine
     // is already known to stream.
     const CamoManager::ArmorCamoPreset kPresets[] =
@@ -48,14 +48,13 @@ namespace
     };
     const int kPresetCount = (int)(sizeof(kPresets) / sizeof(kPresets[0]));
 
-    // ── Engine entry points (RVAs into TheDivision.exe). All from
-    // .claude/docs/05-items-and-camos.md / Snowdrop.h. ───────────────────
+    // -- Engine entry points (RVAs into TheDivision.exe)
     constexpr std::uintptr_t kRVA_StringAssign       = 0x116830;  // SnowdropString::assign(this, c_str)
 
     // SkinItem vtable (verified live read against b_camo_solid_pink in 05-items-and-camos.md).
     constexpr std::uintptr_t kRVA_SkinItemVtable     = 0x2CBA028;
 
-    // SkinItem field offsets (verified — see 05-items-and-camos.md
+    // SkinItem field offsets (verified - see 05-items-and-camos.md
     // "Verified SkinItem layout").
     constexpr int kOff_SkinTexture = 688;   // SnowdropString
     constexpr int kOff_RotU        = 736;   // float
@@ -79,7 +78,7 @@ namespace
     }
 
     // Find the player AppearanceManager via the singleton chain. Returns
-    // nullptr on any link missing — the UI shows a "no AM" status in that
+    // nullptr on any link missing â€” the UI shows a "no AM" status in that
     // case. POD-only so it can host __try.
     TD::AppearanceManager* FindPlayerAM_POD()
     {
@@ -108,7 +107,7 @@ namespace
     }
 
     // POD copy of a SnowdropString into a fixed-size char buf. Same shape
-    // as SkinnedMeshManager::ReadSnowdropStringAt — duplicated to keep
+    // as SkinnedMeshManager::ReadSnowdropStringAt â€” duplicated to keep
     // this TU independent.
     bool ReadSnowdropStringAt(const BYTE* sstr, char* outPath, std::size_t outSize)
     {
@@ -177,7 +176,7 @@ namespace
         __except (EXCEPTION_EXECUTE_HANDLER) { out->ok = false; }
     }
 
-    // Apply mutations to a single SkinItem in place. POD-only — std::string
+    // Apply mutations to a single SkinItem in place. POD-only â€” std::string
     // would have made the SEH guards illegal under C2712.
     struct SkinItemEditPlan
     {
@@ -234,7 +233,7 @@ namespace
     // triple where every link is heap-valid. holder lives at
     // PI+0x80+i*8; holder+0x50 = wrapper; wrapper+0x00 = inner Item*.
     //
-    // This is where camos actually live on the player — they're separate
+    // This is where camos actually live on the player â€” they're separate
     // wrapper slots in PlayerInventory, NOT entries in m_AssetRecords.
     // Verified live via the equip-pipeline RE pass (see
     // 06-inventory-equip-pipeline.md "Where EquipInstances live" + IDA
@@ -320,7 +319,7 @@ CamoManager::~CamoManager() = default;
 
 void CamoManager::Update()
 {
-    // No per-frame engine state to maintain — armor recolor and skin-item
+    // No per-frame engine state to maintain â€” armor recolor and skin-item
     // edits are commit-and-forget. The "refresh skin item list" pass runs
     // inside DrawUI so we only pay for it when the user is looking at
     // this panel.
@@ -338,7 +337,7 @@ bool CamoManager::ApplyArmorCamo(const char* diffuseDds,
     // sub_15A36D0 / AppearanceManager_BindItemToSlot, camo branch):
     // writes 3 SnowdropStrings into m_PathStrings1[0..2] (BASE slots
     // at am+0x480/+0x490/+0x4A0) and sets m_DirtyFlag = 1. NO call to
-    // sub_1542C60 — that finalize helper is only used by the init code
+    // sub_1542C60 â€” that finalize helper is only used by the init code
     // (sub_15A39F0) to seed the slot when it's empty.
     //
     // The override slots [3..5] are written-to-base by sub_1542C60 in a
@@ -405,12 +404,12 @@ void CamoManager::ListSkinItems(std::vector<SkinItemSnapshot>& out)
     // PlayerInventory holders at PI+0x80..+0x200. Each holder+0x50 is a
     // wrapper, wrapper.first_qword is the inner Item* template. Camo
     // items (WeaponSkinItem / BackpackSkinItem / PatchSkinItem) all use
-    // the SkinItem vtable g_pBase + 0x2CBA028 — set by sub_E39140 (the
+    // the SkinItem vtable g_pBase + 0x2CBA028 â€” set by sub_E39140 (the
     // shared 768-byte ctor). Walk every inner item and pick the ones
     // whose vtable matches.
     //
     // We DO NOT scan m_AssetRecords because camo wrappers don't go in
-    // there — sub_15A36D0's camo branch only writes m_PathStrings1[0..2]
+    // there â€” sub_15A36D0's camo branch only writes m_PathStrings1[0..2]
     // and never pushes an asset record. The bag/jacket ArmorItem is what
     // ends up in m_AssetRecords.
     InvInner inners[48] = {};
@@ -506,7 +505,7 @@ bool CamoManager::ApplySkinItemEdit(int holderOffset,
     return !res.callFailed;
 }
 
-// ── Diagnostic: dump all inner items in PlayerInventory ─────────────────────
+// -- Diagnostic: dump all inner items in PlayerInventory ---------------------
 
 namespace
 {
@@ -543,7 +542,7 @@ void CamoManager::DumpPlayerInventory(std::vector<PiEntryRaw>& out)
 {
     out.clear();
 
-    // Sweep a generous range — earlier scans capped at +0x200 (the
+    // Sweep a generous range â€” earlier scans capped at +0x200 (the
     // clothing-relevant chunk), but camo wrappers might live past
     // that. SEH-guarded so reading off the end of the struct just
     // skips invalid offsets.
@@ -562,7 +561,7 @@ void CamoManager::DumpPlayerInventory(std::vector<PiEntryRaw>& out)
     }
 }
 
-// ── Path C: edit a camo template by .mitem name ────────────────────────────
+// -- Path C: edit a camo template by .mitem name ----------------------------
 
 bool CamoManager::LookupCamoTemplate(const char* mitemName,
                                      SkinItemSnapshot* out,
@@ -593,7 +592,7 @@ bool CamoManager::LookupCamoTemplate(const char* mitemName,
         if (errOut) *errOut = "descriptor read faulted";
         return false;
     }
-    // Non-SkinItem templates have an ArmorItem vtable etc. — still
+    // Non-SkinItem templates have an ArmorItem vtable etc. â€” still
     // return the snapshot but warn so the user knows the edit won't
     // hit the camo descriptor extension fields.
     *out = SkinItemSnapshot{};
@@ -610,7 +609,7 @@ bool CamoManager::LookupCamoTemplate(const char* mitemName,
         std::snprintf(buf, sizeof(buf),
                       raw.vtableOk
                         ? "ok (SkinItem template %p)"
-                        : "WARN: vtable is not SkinItem — edits to +688..+760 may be misaligned (%p)",
+                        : "WARN: vtable is not SkinItem â€” edits to +688..+760 may be misaligned (%p)",
                       desc);
         *errOut = buf;
     }
@@ -638,7 +637,7 @@ bool CamoManager::EditCamoTemplate(const char* mitemName,
         return false;
     }
 
-    // Confirm it's a SkinItem before we touch the extension fields —
+    // Confirm it's a SkinItem before we touch the extension fields â€”
     // writing color floats over an ArmorItem's SBO containers would
     // corrupt the template.
     SkinItemRaw raw{};
@@ -664,7 +663,7 @@ bool CamoManager::EditCamoTemplate(const char* mitemName,
     SkinItemEditResult res{};
     ApplySkinItemEdit_POD((void*)desc, &plan, &res);
 
-    // The template is shared — engine re-reads it every frame via the
+    // The template is shared â€” engine re-reads it every frame via the
     // wrapper.first_qword deref. Pinging dirty flag is belt-and-braces
     // but cheap.
     if (auto* am = FindPlayerAM_POD())
@@ -688,11 +687,11 @@ bool CamoManager::EditCamoTemplate(const char* mitemName,
     return !res.callFailed;
 }
 
-// ── UI ──────────────────────────────────────────────────────────────────────
+// -- UI ----------------------------------------------------------------------
 
 namespace
 {
-    // ImGui ARGB ↔ float-RGBA[4] conversion. SkinItem stores colors as
+    // ImGui ARGB â†” float-RGBA[4] conversion. SkinItem stores colors as
     // 0xAARRGGBB. ColorEdit4 takes RGBA floats in [0,1].
     void ArgbToRgbaF(std::uint32_t argb, float out[4])
     {
@@ -718,9 +717,9 @@ namespace
 // section. The user can also type any other .mitem base name; this
 // list is just convenience. Names verified against the game's
 // InventoryConfig taxonomy:
-//   b_camo_*  → BackpackSkinItem (bag camos with ID-mask shader)
-//   w_camo_*  → WeaponSkinItem
-//   pa_camo_* / s_camo_* → PatchSkinItem / other surfaces
+//   b_camo_*  â†’ BackpackSkinItem (bag camos with ID-mask shader)
+//   w_camo_*  â†’ WeaponSkinItem
+//   pa_camo_* / s_camo_* â†’ PatchSkinItem / other surfaces
 static const char* kCamoNamePresets[] =
 {
     "b_camo_solid_pink",
@@ -740,7 +739,7 @@ static const int kCamoNamePresetCount =
 
 void CamoManager::DrawUI()
 {
-    // ── Path C (primary): edit a camo template by .mitem name ────────
+    // -- Path C (primary): edit a camo template by .mitem name --------
     //
     // This is the actual "use any camo & add custom camos" path. The
     // user types a .mitem base name (e.g. b_camo_solid_pink); we look
@@ -766,7 +765,7 @@ void CamoManager::DrawUI()
                            cfg ? "InventoryConfig: ready"
                                : "InventoryConfig: resolving (open an inventory once)");
 
-        // Preset shortcut combo — clicking copies the name into the
+        // Preset shortcut combo â€” clicking copies the name into the
         // editable buffer.
         ImGui::PushItemWidth(280.0f);
         if (ImGui::BeginCombo("Quick pick", "(camo presets)"))
@@ -877,15 +876,15 @@ void CamoManager::DrawUI()
 
     ImGui::Separator();
 
-    // ── Path A: arm-patch / overlay texture (LIMITED SCOPE) ──────────
+    // -- Path A: arm-patch / overlay texture (LIMITED SCOPE) ----------
     if (ImGui::CollapsingHeader("Arm Patch / Overlay Texture (m_PathStrings1)"))
     {
         ImGui::TextWrapped(
-            "WARNING: this section targets m_PathStrings1[0..2] — the engine's "
+            "WARNING: this section targets m_PathStrings1[0..2] â€” the engine's "
             "single 'active overlay' texture set. On most live characters that "
             "slot is bound to the ARM PATCH (CA_SHD_Armpatch_*.dds), NOT the "
             "backpack. Per-bag camos use a different system (ID-mask + 3 colors "
-            "+ texture composed in the model's shader) — use 'Edit Camo Template "
+            "+ texture composed in the model's shader) â€” use 'Edit Camo Template "
             "by Name' above for that. This section is kept for arm-patch / "
             "vanity-jacket recolors only.");
 
@@ -962,177 +961,6 @@ void CamoManager::DrawUI()
             ImVec4 col = m_armorOk ? ImVec4(0.5f, 1.0f, 0.5f, 1.0f)
                                    : ImVec4(1.0f, 0.5f, 0.5f, 1.0f);
             ImGui::TextColored(col, "%s", m_armorResult.c_str());
-        }
-    }
-
-    ImGui::Separator();
-
-    // ── Path B: live SkinItem editor ─────────────────────────────────
-    if (ImGui::CollapsingHeader("Live Skin Item Editor (color / scale / texture)",
-                                ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        ImGui::TextWrapped(
-            "Walks the player's PlayerInventory wrapper table "
-            "(PI+0x80..+0x200) for inner items whose vtable matches the "
-            "shared SkinItem ctor (g_pBase + 0x2CBA028 = WeaponSkin / "
-            "BackpackSkin / PatchSkin). Equip a camo in-game first, then "
-            "click Refresh. Edits hit the per-instance fields at +688 / "
-            "+736..+760 and persist across our own equip operations.");
-
-        // Refresh cache on demand — cheap (typically 0-2 SkinItems present).
-        if (ImGui::Button("Refresh Skin Items"))
-        {
-            ListSkinItems(m_skinCache);
-            m_skinFieldsInitialized = false;
-            // Re-validate the selected index.
-            if (m_skinSelectedIdx >= (int)m_skinCache.size())
-                m_skinSelectedIdx = m_skinCache.empty() ? -1 : 0;
-        }
-        ImGui::SameLine();
-        ImGui::Text("(%d found)", (int)m_skinCache.size());
-
-        if (m_skinCache.empty())
-        {
-            ImGui::TextDisabled("(no SkinItems found in PlayerInventory by vtable match —");
-            ImGui::TextDisabled(" if you have a camo equipped in-game, open Diagnostics below");
-            ImGui::TextDisabled(" and check what vtables actually show up at PI+0x80..+0x600)");
-        }
-        else
-        {
-            // Picker: one row per detected SkinItem.
-            if (m_skinSelectedIdx < 0 || m_skinSelectedIdx >= (int)m_skinCache.size())
-                m_skinSelectedIdx = 0;
-
-            char preview[280];
-            {
-                const auto& s = m_skinCache[m_skinSelectedIdx];
-                std::snprintf(preview, sizeof(preview), "PI+0x%X  %s",
-                              s.recordIndex,
-                              s.texturePath[0] ? s.texturePath : "(empty)");
-            }
-            ImGui::PushItemWidth(420.0f);
-            if (ImGui::BeginCombo("Target", preview))
-            {
-                for (int i = 0; i < (int)m_skinCache.size(); ++i)
-                {
-                    const auto& s = m_skinCache[i];
-                    char label[300];
-                    std::snprintf(label, sizeof(label), "#%d  %s",
-                                  s.recordIndex,
-                                  s.texturePath[0] ? s.texturePath : "(empty)");
-                    bool selected = (m_skinSelectedIdx == i);
-                    if (ImGui::Selectable(label, selected))
-                    {
-                        m_skinSelectedIdx = i;
-                        m_skinFieldsInitialized = false;
-                    }
-                    if (selected) ImGui::SetItemDefaultFocus();
-                }
-                ImGui::EndCombo();
-            }
-            ImGui::PopItemWidth();
-
-            // On first display of a target — or after a refresh — seed the
-            // edit widgets from the live values. After that the user owns
-            // the widgets; we don't clobber their typing on every frame.
-            if (!m_skinFieldsInitialized && m_skinSelectedIdx >= 0
-                && m_skinSelectedIdx < (int)m_skinCache.size())
-            {
-                const auto& s = m_skinCache[m_skinSelectedIdx];
-                std::snprintf(m_skinTextureBuf, sizeof(m_skinTextureBuf),
-                              "%s", s.texturePath);
-                ArgbToRgbaF(s.color1, m_skinColor1Rgba);
-                ArgbToRgbaF(s.color2, m_skinColor2Rgba);
-                ArgbToRgbaF(s.color3, m_skinColor3Rgba);
-                m_skinRotU   = s.rotU;
-                m_skinRotV   = s.rotV;
-                m_skinScaleX = s.scaleX;
-                m_skinScaleY = s.scaleY;
-                m_skinFieldsInitialized = true;
-            }
-
-            ImGui::PushItemWidth(420.0f);
-            ImGui::InputText("mySkinTexture", m_skinTextureBuf, sizeof(m_skinTextureBuf));
-            ImGui::PopItemWidth();
-
-            ImGui::ColorEdit4("myColor1 (RGBA)", m_skinColor1Rgba);
-            ImGui::ColorEdit4("myColor2 (RGBA)", m_skinColor2Rgba);
-            ImGui::ColorEdit4("myColor3 (RGBA)", m_skinColor3Rgba);
-
-            ImGui::PushItemWidth(150.0f);
-            ImGui::DragFloat("myScaleX",    &m_skinScaleX, 0.05f, 0.01f, 100.0f, "%.2f");
-            ImGui::SameLine();
-            ImGui::DragFloat("myScaleY",    &m_skinScaleY, 0.05f, 0.01f, 100.0f, "%.2f");
-            ImGui::DragFloat("myRotationU", &m_skinRotU,   0.01f, -10.0f, 10.0f, "%.2f");
-            ImGui::SameLine();
-            ImGui::DragFloat("myRotationV", &m_skinRotV,   0.01f, -10.0f, 10.0f, "%.2f");
-            ImGui::PopItemWidth();
-
-            if (ImGui::Button("Apply Skin Edit"))
-            {
-                std::string err;
-                const auto& s = m_skinCache[m_skinSelectedIdx];
-                std::uint32_t c1 = RgbaFToArgb(m_skinColor1Rgba);
-                std::uint32_t c2 = RgbaFToArgb(m_skinColor2Rgba);
-                std::uint32_t c3 = RgbaFToArgb(m_skinColor3Rgba);
-                m_skinOk = ApplySkinItemEdit(
-                    s.recordIndex,
-                    m_skinTextureBuf[0] ? m_skinTextureBuf : nullptr,
-                    c1, c2, c3,
-                    m_skinRotU, m_skinRotV,
-                    m_skinScaleX, m_skinScaleY,
-                    &err);
-                m_skinResult = err;
-
-                // Re-pull live values so the preview combo + initial seed
-                // reflect what's now in memory.
-                ListSkinItems(m_skinCache);
-                m_skinFieldsInitialized = false;
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Revert Edits to Live"))
-                m_skinFieldsInitialized = false;
-
-            if (!m_skinResult.empty())
-            {
-                ImVec4 col = m_skinOk ? ImVec4(0.5f, 1.0f, 0.5f, 1.0f)
-                                      : ImVec4(1.0f, 0.5f, 0.5f, 1.0f);
-                ImGui::TextColored(col, "%s", m_skinResult.c_str());
-            }
-        }
-    }
-
-    ImGui::Separator();
-
-    // ── Diagnostic: dump PlayerInventory holders so we can see what
-    // vtables are actually present when Refresh comes back empty. ────
-    if (ImGui::CollapsingHeader("Diagnostics: PlayerInventory dump"))
-    {
-        if (ImGui::Button("Dump PI inners"))
-        {
-            DumpPlayerInventory(m_piDump);
-        }
-        ImGui::SameLine();
-        ImGui::Text("(%d holders found)", (int)m_piDump.size());
-        ImGui::TextDisabled("SkinItem vtable RVA reference: 0x2CBA028");
-        ImGui::TextDisabled("ArmorItem vtable RVA reference: 0x2CA74A0");
-        ImGui::TextDisabled("Item (generic) vtable RVA: 0x2CB9E38");
-
-        if (!m_piDump.empty())
-        {
-            // Plain monospaced-style dump — Tables API isn't available in
-            // this fork of ImGui. Header row + one row per entry, fixed
-            // column widths via space-padding so they line up.
-            ImGui::TextDisabled("PI off    vtable RVA   slot   tag   name");
-            for (const auto& e : m_piDump)
-            {
-                ImGui::Text("+0x%-6X 0x%-10llX %-6d %-5d %s",
-                            e.holderOffset,
-                            (unsigned long long)e.vtableRVA,
-                            e.slotId,
-                            e.assetTypeTag,
-                            e.name[0] ? e.name : "(unnamed)");
-            }
         }
     }
 }

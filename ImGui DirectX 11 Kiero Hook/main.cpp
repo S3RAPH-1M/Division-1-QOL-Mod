@@ -317,10 +317,6 @@ HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 		{
 			tab = 2;
 		}
-		if (ImGui::Button(xor ("Skin Changer"), ImVec2(GUI_COLUMN_OFFSET - 10, 20)))
-		{
-			tab = 3;
-		}
 		if (ImGui::Button(xor ("Player"), ImVec2(GUI_COLUMN_OFFSET - 10, 20)))
 		{
 			tab = 4;
@@ -328,10 +324,6 @@ HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 		if (ImGui::Button(xor ("Agent Inspector"), ImVec2(GUI_COLUMN_OFFSET - 10, 20)))
 		{
 			tab = 5;
-		}
-		if (ImGui::Button(xor ("Camo"), ImVec2(GUI_COLUMN_OFFSET - 10, 20)))
-		{
-			tab = 6;
 		}
 		if (ImGui::Button(xor ("Settings"), ImVec2(GUI_COLUMN_OFFSET - 10, 20)))
 		{
@@ -349,21 +341,21 @@ HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 				switch (tab) {
 				case 1:
 					g_mainHandle->GetCameraManager()->DrawUI();
+					ImGui::Separator();
+					g_mainHandle->GetHeadManager()->DrawUI();
 					break;
 				case 2:
 					g_mainHandle->GetVisualManager()->DrawUI();
 					break;
-				case 3:
-					g_mainHandle->GetSkinnedMeshManager()->DrawUI();
-					break;
 				case 4:
-					g_mainHandle->GetHeadManager()->DrawUI();
+					if (ImGui::CollapsingHeader("Skin Changer", ImGuiTreeNodeFlags_DefaultOpen))
+					{
+						g_mainHandle->GetSkinnedMeshManager()->DrawUI();
+					}
+					g_mainHandle->GetCamoManager()->DrawUI();
 					break;
 				case 5:
 					g_mainHandle->GetAgentInspector()->DrawUI();
-					break;
-				case 6:
-					g_mainHandle->GetCamoManager()->DrawUI();
 					break;
 				case 999:
 					g_mainHandle->GetConfigManager()->DrawUI();

@@ -174,4 +174,40 @@ namespace EquipPipelineProbe
     // Useful for "Cleanup" UI button. After this returns, no Pattern A+
     // injections are tracked anymore.
     void ClearAllInjections(void* appearanceManager);
+
+    // ── Color variant override ─────────────────────────────────────────
+    // The wrapper's +0x13C DWORD selects which 112-byte material record
+    // gets sampled inside the category's row (Owner_LookupAssetHandle
+    // does `array[variant % count]`). The natural value comes from
+    // item+0x3C — that's the authored variant for this template. Setting
+    // an override here lets the UI cycle through the row's other
+    // authored variants live, swapping a jacket's ColorOverlay between
+    // every color the devs shipped for that gear category.
+    //
+    // value < 0 → clear override (back to template's authored variant)
+    // value >=0 → write that DWORD to wrapper+0x13C
+    //
+    // If the slot is currently injected, the live clone buffer is
+    // patched in place. Caller is expected to follow with
+    // ReapplyAllInjections() to make the renderer re-resolve m_pSlot.
+    // Returns true if the override took effect (slot active and clone
+    // patched), false if the slot wasn't injected.
+    bool SetVariantOverride(int slot, int value);
+    int  GetVariantOverride(int slot);
+
+    // ── Live ColorOverlay record edit ──────────────────────────────────
+    // The 112-byte record `m_Clothes[slot].m_pSlot` points at is the
+    // engine's per-(category, variant) material data. Its first 64
+    // bytes are four float4 ColorOverlay values the standard clothing
+    // shader samples per draw. ReadLiveColors copies those 16 floats
+    // out; WriteLiveColors writes them back. SEH-guarded — returns
+    // false if the slot has no m_pSlot (not injected / outside range)
+    // or the read/write faulted.
+    //
+    // ★ Caveat: the record is engine-shared across every character/item
+    // wearing the same (category, variant). Writes affect ALL of them
+    // on this client. They survive until the engine reloads the
+    // category table (zone change / character reload).
+    bool ReadLiveColors (int slot, float outFloats[16]);
+    bool WriteLiveColors(int slot, const float inFloats[16]);
 }

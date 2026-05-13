@@ -2204,6 +2204,19 @@ struct SlotUIState
     char custom[256] = {};          // free-text path (overrides pickedIndex if non-empty)
     std::string lastResult;         // result message of the most recent Apply
     bool        lastOk = false;
+    int  variantUI = -1;            // last variant value rendered in the UI;
+                                    // -1 = "auto" (use template's authored variant).
+                                    // Cached so the InputInt control can show
+                                    // the current value across draw frames.
+
+    // Live ColorOverlay editor state. The 16 floats mirror the four
+    // float4 ColorOverlay values in m_pSlot's 112-byte record. We
+    // snapshot the original values the first time the popup opens
+    // for this slot so "Undo session" can restore them — the engine's
+    // shared category record is mutated in place so we can't get them
+    // back any other way until a zone change re-loads the table.
+    bool  colorsSnapshotTaken = false;
+    float colorsSnapshot[16] = {};
 };
 
 static SlotUIState& UIStateForSlot(int slotIndex)
@@ -2419,6 +2432,86 @@ void SkinnedMeshManager::DrawUI()
         // single-line while still surfacing the diagnostic info.
         if (ImGui::IsItemHovered() && !ls.currentPath.empty())
             ImGui::SetTooltip("slot %d  current: %s", ls.index, ls.currentPath.c_str());
+
+        // ── Color-variant cycle ──────────────────────────────────────
+        // Re-sync the UI value from the probe each draw so apply-all /
+        // restore-original passes that reset the override stay visible.
+        ui.variantUI = EquipPipelineProbe::GetVariantOverride(ls.index);
+
+        ImGui::SameLine();
+        ImGui::PushItemWidth(90.0f);
+        int prev = ui.variantUI;
+        // InputInt with step buttons. Negative values mean "auto"
+        // (use the template's authored variant from item+0x3C).
+        if (ImGui::InputInt("##variant", &ui.variantUI, 1, 1))
+        {
+            if (ui.variantUI < -1) ui.variantUI = -1;
+            if (ui.variantUI != prev)
+            {
+                EquipPipelineProbe::SetVariantOverride(ls.index, ui.variantUI);
+                EquipPipelineProbe::ReapplyAllInjections();
+            }
+        }
+        ImGui::PopItemWidth();
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Color variant for this slot.\n"
+                              "  -1 = use item's authored color\n"
+                              "  0+ = cycle through other shipped colors\n"
+                              "Engine maps value modulo the category's record count,\n"
+                              "so over-shooting just wraps around.");
+
+        // ── Direct RGBA edit on the live record ──────────────────────
+        // m_Clothes[slot].m_pSlot points at the engine's per-(category,
+        // variant) material record. Its first 64 bytes are four float4
+        // ColorOverlay tints. Editing them here writes through the
+        // shared engine record — fully unrestricted color but shared
+        // with anything else resolving to the same (category, variant).
+        ImGui::SameLine();
+        const char* popupId = "##colors_popup";
+        if (ImGui::SmallButton("Colors"))
+        {
+            // Reset snapshot flag so the next ReadLiveColors below
+            // re-captures the current state as "original" for Undo.
+            ui.colorsSnapshotTaken = false;
+            ImGui::OpenPopup(popupId);
+        }
+
+        if (ImGui::BeginPopup(popupId))
+        {
+            float colors[16];
+            if (EquipPipelineProbe::ReadLiveColors(ls.index, colors))
+            {
+                if (!ui.colorsSnapshotTaken)
+                {
+                    std::memcpy(ui.colorsSnapshot, colors, sizeof(colors));
+                    ui.colorsSnapshotTaken = true;
+                }
+
+                ImGui::TextDisabled("ColorOverlay layers (R, G, B, A)");
+                bool changed = false;
+                for (int i = 0; i < 4; ++i)
+                {
+                    char label[16];
+                    std::snprintf(label, sizeof(label), "Color %d", i);
+                    if (ImGui::ColorEdit4(label, &colors[i * 4]))
+                        changed = true;
+                }
+
+                if (changed)
+                    EquipPipelineProbe::WriteLiveColors(ls.index, colors);
+
+                ImGui::Separator();
+                if (ImGui::Button("Undo session"))
+                    EquipPipelineProbe::WriteLiveColors(ls.index, ui.colorsSnapshot);
+                ImGui::SameLine();
+                ImGui::TextDisabled("(restores values from popup open)");
+            }
+            else
+            {
+                ImGui::TextDisabled("no live record — equip this slot first");
+            }
+            ImGui::EndPopup();
+        }
 
         ImGui::PopID();
     }

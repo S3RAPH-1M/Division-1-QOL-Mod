@@ -453,6 +453,11 @@ namespace EquipPipelineProbe
                                    // would have inserted for the bucket;
                                    // recorded for diagnostics + possible
                                    // future per-slot bucket cleanup.
+        int    variantOverride = -1; // -1 = use template's authored variant
+                                     //      (item+0x3C copied verbatim)
+                                     // >=0 = force this value into +0x13C
+                                     //      so Owner_LookupAssetHandle picks
+                                     //      a different record in the row.
     };
     static TrackedInjection s_inj[27]{};
 
@@ -947,6 +952,104 @@ namespace EquipPipelineProbe
     // doesn't have to change.
     void MaintainInjections(void* /*appearanceManager*/) { }
 
+    // Color-variant override.
+    //
+    // Writes (or clears) a sticky variant index on the tracked slot
+    // and, if currently injected, patches the live clone's +0x13C in
+    // place. The caller (UI) follows with ReapplyAllInjections() to
+    // make the engine re-resolve m_Clothes[slot].m_pSlot from the new
+    // (category, variant) pair via Owner_LookupAssetHandle.
+    //
+    // Out-of-range slot values are silently ignored. Returns true if
+    // the override stuck to a live clone (slot was active); false if
+    // the slot wasn't injected — the override is still recorded and
+    // will apply on the next stage.
+    bool SetVariantOverride(int slot, int value)
+    {
+        if (slot < 0 || slot >= 27) return false;
+        s_inj[slot].variantOverride = value;
+        if (!s_inj[slot].active || !s_inj[slot].wrapper) return false;
+        std::uint8_t* clone = (std::uint8_t*)s_inj[slot].wrapper;
+        __try
+        {
+            // value < 0 ⇒ restore from the inner Item template's
+            // authored variant (item+0x3C). The clone's +0x00 still
+            // points at that template after Pattern A+, so this read
+            // is safe and matches what AppearanceWrapper_init would
+            // have written naturally.
+            std::uint32_t newVal;
+            if (value < 0)
+            {
+                void* item = *(void**)clone;
+                if (!item) return false;
+                newVal = *(std::uint32_t*)((std::uint8_t*)item + 0x3C);
+            }
+            else
+            {
+                newVal = (std::uint32_t)value;
+            }
+            *(std::uint32_t*)(clone + 0x13C) = newVal;
+            return true;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
+
+    int GetVariantOverride(int slot)
+    {
+        if (slot < 0 || slot >= 27) return -1;
+        return s_inj[slot].variantOverride;
+    }
+
+    // Walk AM -> m_Clothes[slot].m_pSlot and return the record pointer.
+    // POD-clean (no destructors in scope) so it can be called from SEH-
+    // guarded contexts. Returns nullptr on any chain miss / out-of-range.
+    static void* GetLiveRecordGuarded(int slot)
+    {
+        if (slot < 0 || slot >= 27) return nullptr;
+        auto* am = GetPlayerAppearance();
+        if (!am) return nullptr;
+        void* record = nullptr;
+        __try
+        {
+            // m_Clothes starts at AM+0x38, stride 0x28, m_pSlot at +0x00.
+            std::uint8_t* base = (std::uint8_t*)am + 0x38 + (std::size_t)slot * 0x28;
+            record = *(void**)base;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) { record = nullptr; }
+        // Reject the shared fallback bucket (engine returns WCC+0x360+80
+        // on lookup miss; writes there get clobbered by every other
+        // miss). Heuristic: it'd be the same address across every
+        // miss-state slot — we just require it look like a heap ptr.
+        if (!LooksLikeHeapPtr(record)) return nullptr;
+        return record;
+    }
+
+    bool ReadLiveColors(int slot, float outFloats[16])
+    {
+        if (!outFloats) return false;
+        void* record = GetLiveRecordGuarded(slot);
+        if (!record) return false;
+        __try
+        {
+            std::memcpy(outFloats, record, 16 * sizeof(float));
+            return true;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
+
+    bool WriteLiveColors(int slot, const float inFloats[16])
+    {
+        if (!inFloats) return false;
+        void* record = GetLiveRecordGuarded(slot);
+        if (!record) return false;
+        __try
+        {
+            std::memcpy(record, inFloats, 16 * sizeof(float));
+            return true;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
+
     // Manually re-apply every active Pattern A+ injection in a single
     // sub_162DB80 call. Use this when the engine has clobbered our
     // wrappers (slots gone invisible) and you want everything back.
@@ -1003,6 +1106,18 @@ namespace EquipPipelineProbe
         // Without this the lookup falls through to the shared dummy
         // bucket and color-overlay gear renders as cream-white.
         RetargetWrapperKeysGuarded(s_clones[slotIdx], itemTemplate);
+
+        // Honor a sticky variant override from the UI. The retarget
+        // above just copied item+0x3C into +0x13C — the template's
+        // authored variant. If the user previously picked a different
+        // variant via the color-cycle UI, restore it so cycling
+        // survives a re-stage / Apply All / re-equip via in-game UI.
+        int variant = s_inj[slotIdx].variantOverride;
+        if (variant >= 0)
+        {
+            __try { *(std::uint32_t*)(s_clones[slotIdx] + 0x13C) = (std::uint32_t)variant; }
+            __except (EXCEPTION_EXECUTE_HANDLER) {}
+        }
 
         s_inj[slotIdx].active  = true;
         s_inj[slotIdx].wrapper = s_clones[slotIdx];

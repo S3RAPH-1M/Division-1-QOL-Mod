@@ -4,6 +4,116 @@
 #include "imgui/imgui.h"
 #include <string>
 
+namespace SnowdropDebugUI
+{
+    // sub_1B72FF0: generic juice-driven UI-graph list loader.
+    // Reads qword_45026D0 (juice store) → "myUILoadList" → list named by `listName`,
+    // and instantiates+registers each entry into the live UI system.
+    constexpr std::uintptr_t kLoadUIGraphListRVA = 0x1B72FF0;
+    using LoadUIGraphList_t = std::int64_t (__fastcall *)(const char* listName);
+
+    static LoadUIGraphList_t Get()
+    {
+        return reinterpret_cast<LoadUIGraphList_t>(g_pBase + kLoadUIGraphListRVA);
+    }
+
+    static const char* g_lastResult = nullptr;
+    static std::int32_t g_countBefore = -1;
+    static std::int32_t g_countAfter  = -1;
+    static std::int32_t g_mgrCountBefore = -1;
+    static std::int32_t g_mgrCountAfter  = -1;
+    static std::uint8_t g_gateByteBefore = 0xFF;
+
+    // Two candidate counters — we read both to see which actually moves.
+    //   kHotReloadCountRVA : qword_3EC4F30 LO  -- sub_A64540 watch list (likely 0 in retail)
+    //   kUIMgrCountOff     : qword_480ECE0 + 0x28 LO  -- count field of the live UI graph
+    //                          manager. Initial read showed 0x4D (77 active graphs).
+    constexpr std::uintptr_t kHotReloadCountRVA = 0x3EC4F30;
+    constexpr std::uintptr_t kUIGraphMgrRVA     = 0x480ECE0;
+    constexpr std::size_t    kUIMgrCountOff     = 0x28;
+
+    static std::int32_t ReadGraphCount()
+    {
+        __try {
+            return *reinterpret_cast<const std::int32_t*>(g_pBase + kHotReloadCountRVA);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) {
+            return -1;
+        }
+    }
+
+    static std::int32_t ReadUIMgrCount()
+    {
+        __try {
+            void* mgr = *reinterpret_cast<void**>(g_pBase + kUIGraphMgrRVA);
+            if (!mgr) return -1;
+            return *reinterpret_cast<const std::int32_t*>(
+                reinterpret_cast<std::uint8_t*>(mgr) + kUIMgrCountOff);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) {
+            return -1;
+        }
+    }
+
+    // POD-only SEH helper. Resolves [Client+0x90] → inner manager, returns
+    // pointer to its +0x2B1 byte (the "graph-load enabled" gate that
+    // sub_1B327E0 flips to 1 before calling sub_1B72FF0 at startup).
+    // Returns nullptr if any step is null.
+    static std::uint8_t* ResolveGateByte()
+    {
+        __try {
+            TD::RogueClient* rc = TD::RogueClient::Singleton();
+            if (!rc) return nullptr;
+            TD::Client* client = rc->m_pClient;
+            if (!client) return nullptr;
+            void* innerMgr = *reinterpret_cast<void**>(
+                reinterpret_cast<std::uint8_t*>(client) + 0x90);
+            if (!innerMgr) return nullptr;
+            return reinterpret_cast<std::uint8_t*>(innerMgr) + 0x2B1;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) {
+            return nullptr;
+        }
+    }
+
+    static void Load(const char* listName)
+    {
+        __try {
+            Get()(listName);
+            g_lastResult = "ok";
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) {
+            g_lastResult = "exception (juice key probably missing)";
+        }
+    }
+
+    // Replicates the `-enabledebugui` startup behavior at runtime:
+    //   1. snapshot the count
+    //   2. flip [Client+0x90][+0x2B1] = 1 (the gate byte)
+    //   3. sub_1B72FF0("myDebugGraphs")
+    //   4. restore the gate byte to its previous value
+    //   5. read back the count to confirm graphs actually registered
+    static void ForceEnableDebugUI()
+    {
+        std::uint8_t* gate = ResolveGateByte();
+        if (!gate) {
+            g_lastResult = "ResolveGateByte failed (Client/manager not ready)";
+            return;
+        }
+
+        g_countBefore    = ReadGraphCount();
+        g_mgrCountBefore = ReadUIMgrCount();
+        g_gateByteBefore = *gate;
+
+        *gate = 1;
+        Load("myDebugGraphs");
+        *gate = g_gateByteBefore;
+
+        g_countAfter    = ReadGraphCount();
+        g_mgrCountAfter = ReadUIMgrCount();
+    }
+}
+
 VisualManager::VisualManager()
 {
     m_overrideTimeOfDay = false;
@@ -127,16 +237,70 @@ void VisualManager::DrawUI()
 
   if(!pEnvManager->m_RunWeatherTimer)
   {
-      if (ImGui::Button("Start Blend Transition")) 
+      if (ImGui::Button("Start Blend Transition"))
       {
           pEnvManager->m_RunWeatherTimer = !pEnvManager->m_RunWeatherTimer;
       }
   }
-  else 
+  else
   {
       if (ImGui::Button("Stop Blend Transition"))
       {
           pEnvManager->m_RunWeatherTimer = !pEnvManager->m_RunWeatherTimer;
       }
+  }
+
+  ImGui::Spacing();
+  ImGui::Separator();
+  if (ImGui::CollapsingHeader("Snowdrop Debug UI (experimental)"))
+  {
+      ImGui::TextWrapped(
+          "Replicates what the engine does when launched with -enabledebugui "
+          "(Uplay strips that flag, so we do it manually):\n"
+          "  1. resolve RogueClient->m_pClient->[+0x90] -> inner manager\n"
+          "  2. set [inner_manager + 0x2B1] = 1 (the gate byte sub_1B327E0 sets)\n"
+          "  3. call sub_1B72FF0(\"myDebugGraphs\") -> sub_A64540 path\n"
+          "  4. restore the gate byte\n"
+          "  5. read back qword_3EC4F30 to confirm the registry grew");
+
+      ImGui::Spacing();
+      if (ImGui::Button("Force enable Snowdrop Debug UI"))
+          SnowdropDebugUI::ForceEnableDebugUI();
+
+      ImGui::Spacing();
+      ImGui::Text("Hot-reload watch list (qword_3EC4F30): %d",
+                  SnowdropDebugUI::ReadGraphCount());
+      ImGui::Text("UI graph manager count (qword_480ECE0+0x28): %d",
+                  SnowdropDebugUI::ReadUIMgrCount());
+      if (SnowdropDebugUI::g_countBefore >= 0)
+      {
+          ImGui::Text("Last attempt:");
+          ImGui::Text("  watch list: %d -> %d  (delta %+d)",
+                      SnowdropDebugUI::g_countBefore,
+                      SnowdropDebugUI::g_countAfter,
+                      SnowdropDebugUI::g_countAfter - SnowdropDebugUI::g_countBefore);
+          ImGui::Text("  UI mgr:     %d -> %d  (delta %+d)",
+                      SnowdropDebugUI::g_mgrCountBefore,
+                      SnowdropDebugUI::g_mgrCountAfter,
+                      SnowdropDebugUI::g_mgrCountAfter - SnowdropDebugUI::g_mgrCountBefore);
+          ImGui::Text("  Gate byte was: 0x%02X (forced to 1 during call)",
+                      SnowdropDebugUI::g_gateByteBefore);
+      }
+      if (SnowdropDebugUI::g_lastResult)
+          ImGui::Text("Status: %s", SnowdropDebugUI::g_lastResult);
+
+      ImGui::Spacing();
+      ImGui::Separator();
+      ImGui::TextDisabled("Diagnostic (no gate-byte flip):");
+      if (ImGui::Button("Load myDebugGraphs (raw)"))
+          SnowdropDebugUI::Load("myDebugGraphs");
+      ImGui::SameLine();
+      if (ImGui::Button("Reload myUIGraphs (raw)"))
+          SnowdropDebugUI::Load("myUIGraphs");
+      if (ImGui::Button("Load myUIStartupGraphs (raw)"))
+          SnowdropDebugUI::Load("myUIStartupGraphs");
+      ImGui::SameLine();
+      if (ImGui::Button("Load myPCGraphs (raw)"))
+          SnowdropDebugUI::Load("myPCGraphs");
   }
 }

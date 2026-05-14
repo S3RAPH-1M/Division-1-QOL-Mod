@@ -7,7 +7,7 @@
 #include "SkinnedMeshManager.h"
 #include "CamoManager.h"
 #include "HeadManager.h"
-#include "AgentInspector.h"
+#include "UIInspector.h"
 
 class Main
 {
@@ -24,7 +24,7 @@ public:
 	CamoManager* GetCamoManager() { return m_pCamoManager.get(); }
 	ConfigManager* GetConfigManager() { return m_pConfigManager.get(); }
 	HeadManager* GetHeadManager() { return m_pHeadManager.get(); }
-	AgentInspector* GetAgentInspector() { return m_pAgentInspector.get(); }
+	UIInspector* GetUIInspector() { return m_pUIInspector.get(); }
 
 	std::unique_ptr<CameraManager> m_pCameraManager;
 	std::unique_ptr<VisualManager> m_pVisualManager;
@@ -32,7 +32,7 @@ public:
 	std::unique_ptr<CamoManager> m_pCamoManager;
 	std::unique_ptr<ConfigManager> m_pConfigManager;
 	std::unique_ptr<HeadManager> m_pHeadManager;
-	std::unique_ptr<AgentInspector> m_pAgentInspector;
+	std::unique_ptr<UIInspector> m_pUIInspector;
 
 	bool m_shutdown;
 public:

@@ -111,7 +111,7 @@
     <ClCompile Include="EquipPipelineProbe.cpp">
       <Filter>Source Files\Managers</Filter>
     </ClCompile>
-    <ClCompile Include="AgentInspector.cpp">
+    <ClCompile Include="UIInspector.cpp">
       <Filter>Source Files\Managers</Filter>
     </ClCompile>
   </ItemGroup>
@@ -220,7 +220,7 @@
     <ClInclude Include="EquipPipelineProbe.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="AgentInspector.h">
+    <ClInclude Include="UIInspector.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="VisualManager.h">

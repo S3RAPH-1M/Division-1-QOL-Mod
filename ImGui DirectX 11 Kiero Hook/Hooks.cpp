@@ -27,6 +27,10 @@ int __fastcall hCameraUpdate(__int64 pCamera, __int64 pTransform)
 {
     int result = oCameraUpdate(pCamera, pTransform);
     g_mainHandle->GetCameraManager()->CameraHook(pCamera);
+    // Pre-render, post-agent-tick: re-assert the forced rogue look here so the
+    // engine's per-frame sub_1670180 (which zeroes Agent+0x75C) can't win the
+    // race before the watch/antenna props are built. Fixes the orange/red flicker.
+    ApplyForceRogueVisualTick();
     return result;
 }
 
@@ -34,6 +38,7 @@ int __fastcall hCameraUpdate2(__int64 pCamera, __int64 pTransform)
 {
     int result = oCameraUpdate2(pCamera, pTransform);
     g_mainHandle->GetCameraManager()->CameraHook(pCamera);
+    ApplyForceRogueVisualTick();
     return result;
 }
 

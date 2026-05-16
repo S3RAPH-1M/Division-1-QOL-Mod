@@ -1,4 +1,7 @@
 #include "UIInspector.h"
+
+#if QOL_ENABLE_INSPECTORS
+
 #include "imgui/imgui.h"
 #include <Windows.h>
 #include <intrin.h>
@@ -1199,3 +1202,5 @@ void UIInspector::DrawUI()
             "means asset bytes weren't found in any mounted bundle.");
     }
 }
+
+#endif // QOL_ENABLE_INSPECTORS

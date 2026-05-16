@@ -1,4 +1,18 @@
 #pragma once
+
+// The UI / Agent inspectors are debug-only tooling. They are present in the
+// Debug and DebugAndCopy configurations (both build against the debug CRT,
+// which defines _DEBUG) and compiled out entirely of Release / ReleaseAndCopy.
+#ifndef QOL_ENABLE_INSPECTORS
+  #ifdef _DEBUG
+    #define QOL_ENABLE_INSPECTORS 1
+  #else
+    #define QOL_ENABLE_INSPECTORS 0
+  #endif
+#endif
+
+#if QOL_ENABLE_INSPECTORS
+
 #include <vector>
 #include <string>
 #include <cstdint>
@@ -62,3 +76,5 @@ public:
     UIInspector(UIInspector const&) = delete;
     void operator=(UIInspector const&) = delete;
 };
+
+#endif // QOL_ENABLE_INSPECTORS

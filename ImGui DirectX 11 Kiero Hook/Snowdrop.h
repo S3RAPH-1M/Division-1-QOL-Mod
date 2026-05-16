@@ -183,6 +183,22 @@ namespace TD
             return *reinterpret_cast<const BYTE*>(reinterpret_cast<const char*>(this) + 0x75C) != 0;
         }
 
+        // Client-side cosmetic rogue override. Writes the two replicated rogue
+        // bytes that drive the SHD watch/antenna emissive recolor (orange<->red):
+        //   +0x75C m_IsRogue            (0->1 verified live in ReClass)
+        //   +0x762 rogue-status mirror  (0->1 verified live in ReClass)
+        // The watch/antenna prop material is data-bound to the AgentNodeRogueStatus
+        // graph node, so flipping these bytes is enough to recolor with no server
+        // action (Division 1 is client-authoritative, no anti-cheat). Genuine
+        // rogue state is server-replicated, so when NOT actually rogue this must
+        // be re-applied every frame to hold the look.
+        void SetRogueVisual(bool on)
+        {
+            const BYTE v = on ? 1 : 0;
+            *reinterpret_cast<BYTE*>(reinterpret_cast<char*>(this) + 0x75C) = v;
+            *reinterpret_cast<BYTE*>(reinterpret_cast<char*>(this) + 0x762) = v;
+        }
+
         bool IsDead() const
         {
             return *reinterpret_cast<const BYTE*>(  reinterpret_cast<const char*>(this) + 0x1C0) != 0;
@@ -1363,6 +1379,19 @@ namespace TD
         Agent* player = world->m_AgentArray[0];
         if (!player) return nullptr;
         return player->m_pInventory;
+    }
+
+    // Convenience: get the local player's Agent. Walks World::m_AgentArray[0]
+    // (first agent is conventionally the local player; m_EntityType==1).
+    inline Agent* GetLocalPlayerAgent()
+    {
+        RogueClient* rc = RogueClient::Singleton();
+        if (!rc) return nullptr;
+        Client* client = rc->m_pClient;
+        if (!client) return nullptr;
+        World* world = client->m_pWorld;
+        if (!world || world->m_AgentCount <= 0) return nullptr;
+        return world->m_AgentArray[0];
     }
 
     static void ShowMouse(bool arg)

@@ -111,6 +111,36 @@ LRESULT __stdcall WndProc(const HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 }
 
 
+// Holds the client-side cosmetic rogue look by re-writing the replicated
+// rogue byte (Agent+0x75C / +0x762). The engine recomputes 0x75C every sim
+// tick (sub_1670180, from a null rogue-component when not genuinely rogue),
+// so this MUST run pre-render, after the agent tick — it's called from the
+// camera-update vtable hook, not from Present (Present was too late and
+// produced an orange/red flicker as the character built with the engine's 0).
+// POD-only + SEH per the C2712 rule (no C++ destructor objects in __try).
+void ApplyForceRogueVisualTick()
+{
+	static bool s_wasForcing = false;
+	__try
+	{
+		if (g_ForceRogueVisual)
+		{
+			TD::Agent* p = TD::GetLocalPlayerAgent();
+			if (p && p->IsPlayer())
+				p->SetRogueVisual(true);
+			s_wasForcing = true;
+		}
+		else if (s_wasForcing)
+		{
+			TD::Agent* p = TD::GetLocalPlayerAgent();
+			if (p && p->IsPlayer())
+				p->SetRogueVisual(false);
+			s_wasForcing = false;
+		}
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER) {}
+}
+
 // Update: Per-frame update function, called every frame.
 // Checks if the game is initialized and if the game window is in the foreground.
 // Early exits if initialization hasn't completed or the window is not active.
@@ -125,12 +155,15 @@ void Update(void) {
 	g_mainHandle->GetHeadManager()->Update();
 	g_mainHandle->GetSkinnedMeshManager()->Update();
 	g_mainHandle->GetCamoManager()->Update();
+	// NOTE: rogue-visual enforcement intentionally lives in the camera-update
+	// hook (Hooks.cpp), not here — it must run pre-render/post-agent-tick.
 }
 
 
 bool g_InDarkZone = false;
 bool g_IsPlayerRogue = false;
 bool g_IsPlayerDead = false;
+bool g_ForceRogueVisual = false;
 void ApplyDivisionTheme()
 {
 	ImGuiStyle& style = ImGui::GetStyle();
@@ -321,10 +354,16 @@ HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 		{
 			tab = 4;
 		}
+#if QOL_ENABLE_INSPECTORS
 		if (ImGui::Button(xor ("UI Inspector"), ImVec2(GUI_COLUMN_OFFSET - 10, 20)))
 		{
 			tab = 5;
 		}
+		if (ImGui::Button(xor ("Agent Inspector"), ImVec2(GUI_COLUMN_OFFSET - 10, 20)))
+		{
+			tab = 6;
+		}
+#endif
 		if (ImGui::Button(xor ("Settings"), ImVec2(GUI_COLUMN_OFFSET - 10, 20)))
 		{
 			tab = 999;
@@ -353,10 +392,26 @@ HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 						g_mainHandle->GetSkinnedMeshManager()->DrawUI();
 					}
 					g_mainHandle->GetCamoManager()->DrawUI();
+					ImGui::Separator();
+					if (ImGui::CollapsingHeader("Rogue Status (cosmetic)", ImGuiTreeNodeFlags_DefaultOpen))
+					{
+						ImGui::Checkbox("Force Rogue Visual (watch/antenna red)", &g_ForceRogueVisual);
+						ImGui::TextWrapped(
+							"Client-side only. Holds Agent+0x75C / +0x762 each frame so the "
+							"SHD watch + backpack antenna show the red rogue glow. No server "
+							"action (game is client-authoritative, no anti-cheat). Unchecking "
+							"clears it next frame unless you are genuinely rogue.");
+						ImGui::Text("Engine reports rogue: %s", g_IsPlayerRogue ? "yes" : "no");
+					}
 					break;
+#if QOL_ENABLE_INSPECTORS
 				case 5:
 					g_mainHandle->GetUIInspector()->DrawUI();
 					break;
+				case 6:
+					g_mainHandle->GetAgentInspector()->DrawUI();
+					break;
+#endif
 				case 999:
 					g_mainHandle->GetConfigManager()->DrawUI();
 					break;
@@ -431,8 +486,13 @@ void Main::Initialize()
 	m_pHeadManager = std::make_unique<HeadManager>();
 	std::cout << "Created the m_pHeadManager!\n";
 
+#if QOL_ENABLE_INSPECTORS
 	m_pUIInspector = std::make_unique<UIInspector>();
 	std::cout << "Created the m_pUIInspector!\n";
+
+	m_pAgentInspector = std::make_unique<AgentInspector>();
+	std::cout << "Created the m_pAgentInspector!\n";
+#endif
 }
 
 void Console(bool enable)

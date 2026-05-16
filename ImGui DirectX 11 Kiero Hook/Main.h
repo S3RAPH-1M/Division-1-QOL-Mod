@@ -8,6 +8,7 @@
 #include "CamoManager.h"
 #include "HeadManager.h"
 #include "UIInspector.h"
+#include "AgentInspector.h"
 
 class Main
 {
@@ -24,7 +25,10 @@ public:
 	CamoManager* GetCamoManager() { return m_pCamoManager.get(); }
 	ConfigManager* GetConfigManager() { return m_pConfigManager.get(); }
 	HeadManager* GetHeadManager() { return m_pHeadManager.get(); }
+#if QOL_ENABLE_INSPECTORS
 	UIInspector* GetUIInspector() { return m_pUIInspector.get(); }
+	AgentInspector* GetAgentInspector() { return m_pAgentInspector.get(); }
+#endif
 
 	std::unique_ptr<CameraManager> m_pCameraManager;
 	std::unique_ptr<VisualManager> m_pVisualManager;
@@ -32,7 +36,10 @@ public:
 	std::unique_ptr<CamoManager> m_pCamoManager;
 	std::unique_ptr<ConfigManager> m_pConfigManager;
 	std::unique_ptr<HeadManager> m_pHeadManager;
+#if QOL_ENABLE_INSPECTORS
 	std::unique_ptr<UIInspector> m_pUIInspector;
+	std::unique_ptr<AgentInspector> m_pAgentInspector;
+#endif
 
 	bool m_shutdown;
 public:
@@ -57,3 +64,9 @@ extern HMODULE g_ModModule;
 extern bool g_InDarkZone;
 extern bool g_IsPlayerRogue;
 extern bool g_IsPlayerDead;
+extern bool g_ForceRogueVisual;
+
+// Pre-render rogue-visual enforcer. Defined in main.cpp, invoked from the
+// camera-update vtable hook (post-original, pre-scene-render) so our write
+// is the last one before the watch/antenna props are built each frame.
+void ApplyForceRogueVisualTick();
